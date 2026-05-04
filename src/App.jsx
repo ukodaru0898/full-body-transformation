@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext'
 import AuthPage from './pages/AuthPage'
 import Dashboard from './pages/Dashboard'
 import SchedulePage from './pages/SchedulePage'
+import Leaderboard from './pages/Leaderboard'
 import './App.css'
 
 function ProtectedRoute({ children }) {
@@ -29,6 +30,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <SchedulePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/leaderboard"
+            element={
+              <ProtectedRoute>
+                <Leaderboard />
               </ProtectedRoute>
             }
           />

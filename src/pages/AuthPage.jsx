@@ -7,7 +7,9 @@ export default function AuthPage() {
   const [form, setForm] = useState({ name: '', email: '', password: '' })
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
-  const { login, register } = useAuth()
+  const [showPwd, setShowPwd] = useState(false)
+  const [resetSent, setResetSent] = useState(false)
+  const { login, register, loginWithGoogle, forgotPassword } = useAuth()
   const navigate = useNavigate()
 
   const set = (field) => (e) => setForm((p) => ({ ...p, [field]: e.target.value }))
@@ -47,11 +49,13 @@ export default function AuthPage() {
         </div>
 
         <h1 className="auth-title">
-          {mode === 'login' ? 'Welcome Back' : 'Start Your Journey'}
+          {mode === 'login' ? 'Welcome Back' : mode === 'forgot' ? 'Reset Password' : 'Start Your Journey'}
         </h1>
         <p className="auth-subhead">
           {mode === 'login'
             ? 'Log in to track your transformation, health metrics, and daily schedule.'
+            : mode === 'forgot'
+            ? 'Enter your email and we\'ll send you a reset link.'
             : 'Create your account and build your camera-ready physique in 8 weeks.'}
         </p>
 
@@ -59,20 +63,29 @@ export default function AuthPage() {
           <button
             type="button"
             className={mode === 'login' ? 'active' : ''}
-            onClick={() => { setMode('login'); setError('') }}
+            onClick={() => { setMode('login'); setError(''); setResetSent(false) }}
           >
             Login
           </button>
           <button
             type="button"
             className={mode === 'register' ? 'active' : ''}
-            onClick={() => { setMode('register'); setError('') }}
+            onClick={() => { setMode('register'); setError(''); setResetSent(false) }}
           >
             Register
           </button>
         </div>
 
-        <form className="auth-form" onSubmit={handleSubmit}>
+        <form className="auth-form" onSubmit={mode === 'forgot' ? async (e) => {
+          e.preventDefault(); setError(''); setBusy(true)
+          try {
+            await forgotPassword(form.email)
+            setResetSent(true)
+          } catch (err) {
+            setError(err.message.replace('Firebase: ', '').replace(/\(auth\/.*?\)\.?/, '').trim())
+          }
+          setBusy(false)
+        } : handleSubmit}>
           {mode === 'register' && (
             <label>
               Full Name
@@ -101,33 +114,76 @@ export default function AuthPage() {
 
           <label>
             Password
-            <input
-              type="password"
-              placeholder="Minimum 6 characters"
-              value={form.password}
-              onChange={set('password')}
-              required
-              minLength={6}
-              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-            />
+            <div className="pwd-wrap">
+              <input
+                type={showPwd ? 'text' : 'password'}
+                placeholder="Minimum 6 characters"
+                value={form.password}
+                onChange={set('password')}
+                required
+                minLength={6}
+                autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+              />
+              <button type="button" className="pwd-toggle" onClick={() => setShowPwd(p => !p)}>
+                {showPwd ? '🙈' : '👁️'}
+              </button>
+            </div>
           </label>
 
           {error && <p className="auth-error">{error}</p>}
+          {resetSent && <p className="auth-success">✅ Reset email sent! Check your inbox.</p>}
 
           <button type="submit" className="primary-btn" disabled={busy}>
             {busy
               ? 'Please wait…'
               : mode === 'login'
               ? 'Login →'
+              : mode === 'forgot'
+              ? 'Send Reset Email →'
               : 'Create Account →'}
           </button>
         </form>
+
+        {mode === 'login' && (
+          <p className="auth-forgot">
+            <button type="button" onClick={() => { setMode('forgot'); setError(''); setResetSent(false) }}>
+              Forgot password?
+            </button>
+          </p>
+        )}
+
+        <div className="auth-divider"><span>or</span></div>
+
+        <button
+          type="button"
+          className="google-btn"
+          disabled={busy}
+          onClick={async () => {
+            setError('')
+            setBusy(true)
+            try {
+              await loginWithGoogle()
+              navigate('/dashboard')
+            } catch (err) {
+              setError(err.message.replace('Firebase: ', '').replace(/\(auth\/.*?\)\.?/, '').trim())
+            }
+            setBusy(false)
+          }}
+        >
+          <svg width="18" height="18" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+            <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+            <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+            <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+            <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+          </svg>
+          Continue with Google
+        </button>
 
         <p className="auth-switch">
           {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
           <button
             type="button"
-            onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError('') }}
+            onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(''); setResetSent(false) }}
           >
             {mode === 'login' ? 'Register for free' : 'Log in'}
           </button>

@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { getToken } from 'firebase/messaging'
+import { messaging } from '../firebase'
 
 const NAV_PAGES = [
   { id: 'face', label: '🧴 Face', color: '#ff9a5a' },
@@ -125,7 +127,7 @@ function parseAppleHealthXML(xmlText) {
 }
 
 export default function Dashboard() {
-  const { currentUser, userProfile, logout, saveCompletedTasks, saveHealthData } = useAuth()
+  const { currentUser, userProfile, logout, saveCompletedTasks, saveHealthData, uploadProfilePhoto } = useAuth()
   const navigate = useNavigate()
 
   const health = userProfile?.healthData || {
@@ -137,7 +139,35 @@ export default function Dashboard() {
   const [logField, setLogField] = useState(null)
   const [logValue, setLogValue] = useState('')
   const [syncMsg, setSyncMsg] = useState('')
+  const [photoUploading, setPhotoUploading] = useState(false)
+  const [notifStatus, setNotifStatus] = useState('')
 
+  const handlePhotoUpload = async (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    setPhotoUploading(true)
+    try {
+      await uploadProfilePhoto(file)
+    } catch {
+      // silent fail
+    }
+    setPhotoUploading(false)
+    e.target.value = ''
+  }
+
+  const requestNotifications = async () => {
+    try {
+      const permission = await Notification.requestPermission()
+      if (permission !== 'granted') { setNotifStatus('Notifications blocked.'); return }
+      if (!messaging) { setNotifStatus('Not supported in this browser.'); return }
+      const token = await getToken(messaging, { vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY })
+      if (token) setNotifStatus('✅ Notifications enabled!')
+      else setNotifStatus('Could not get token. Try again.')
+    } catch {
+      setNotifStatus('Could not enable notifications.')
+    }
+    setTimeout(() => setNotifStatus(''), 4000)
+  }
   const toggleToday = async (i) => {
     const key = `today-${i}`
     const updated = { ...completed, [key]: !completed[key] }
@@ -183,7 +213,13 @@ export default function Dashboard() {
       {/* ── HEADER ── */}
       <header className="dash-header">
         <div className="dash-header-left">
-          <span className="brand-icon">💪</span>
+          <label className="avatar-wrap" title="Change photo">
+            {(userProfile?.photoURL || currentUser?.photoURL)
+              ? <img src={userProfile?.photoURL || currentUser?.photoURL} alt="avatar" className="avatar-img" />
+              : <span className="avatar-initials">{firstName[0]}</span>}
+            {photoUploading && <span className="avatar-uploading">…</span>}
+            <input type="file" accept="image/*" hidden onChange={handlePhotoUpload} />
+          </label>
           <div>
             <p className="kicker">2-Month Transformation</p>
             <h2>Welcome back, {firstName}</h2>
@@ -191,9 +227,19 @@ export default function Dashboard() {
         </div>
         <div className="dash-header-right">
           <p className="dash-date">{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
+          <button className="ghost-btn-sm" onClick={() => navigate('/leaderboard')}>🏆 Leaderboard</button>
+          <button className="ghost-btn-sm" onClick={requestNotifications} title="Enable push notifications">🔔</button>
           <button className="ghost-btn" onClick={() => logout().then(() => navigate('/'))}>Logout</button>
         </div>
       </header>
+
+      {/* ── EMAIL VERIFICATION BANNER ── */}
+      {currentUser && !currentUser.emailVerified && (
+        <div className="verify-banner">
+          📧 Please verify your email address. Check your inbox for the verification link.
+        </div>
+      )}
+      {notifStatus && <div className="verify-banner notif-banner">{notifStatus}</div>}
 
       {/* ── NAV ── */}
       <nav className="dash-nav">
