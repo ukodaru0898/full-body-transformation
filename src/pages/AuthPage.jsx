@@ -2,6 +2,26 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 
+function toFriendlyAuthError(err) {
+  const code = err?.code || ''
+  if (code === 'auth/email-already-in-use') return 'This email is already registered. Try logging in instead.'
+  if (code === 'auth/invalid-credential') return 'Invalid email or password.'
+  if (code === 'auth/invalid-email') return 'Please enter a valid email address.'
+  if (code === 'auth/weak-password') return 'Password is too weak. Use at least 6 characters.'
+  if (code === 'auth/popup-closed-by-user') return 'Google sign-in popup was closed before completing.'
+  if (code === 'auth/too-many-requests') return 'Too many attempts. Please wait a few minutes and try again.'
+
+  const cleaned = (err?.message || '')
+    .replace('Firebase: ', '')
+    .replace(/\(auth\/.*?\)\.?/, '')
+    .trim()
+
+  if (!cleaned || cleaned.toLowerCase() === 'error') {
+    return 'Authentication failed. Please try again.'
+  }
+  return cleaned
+}
+
 export default function AuthPage() {
   const [mode, setMode] = useState('login')
   const [form, setForm] = useState({ name: '', email: '', password: '' })
@@ -27,11 +47,7 @@ export default function AuthPage() {
       }
       navigate('/dashboard')
     } catch (err) {
-      const msg = err.message
-        .replace('Firebase: ', '')
-        .replace(/\(auth\/.*?\)\.?/, '')
-        .trim()
-      setError(msg || 'Something went wrong. Please try again.')
+      setError(toFriendlyAuthError(err))
     }
     setBusy(false)
   }
@@ -82,7 +98,7 @@ export default function AuthPage() {
             await forgotPassword(form.email)
             setResetSent(true)
           } catch (err) {
-            setError(err.message.replace('Firebase: ', '').replace(/\(auth\/.*?\)\.?/, '').trim())
+            setError(toFriendlyAuthError(err))
           }
           setBusy(false)
         } : handleSubmit}>
@@ -165,7 +181,7 @@ export default function AuthPage() {
               await loginWithGoogle()
               navigate('/dashboard')
             } catch (err) {
-              setError(err.message.replace('Firebase: ', '').replace(/\(auth\/.*?\)\.?/, '').trim())
+              setError(toFriendlyAuthError(err))
             }
             setBusy(false)
           }}

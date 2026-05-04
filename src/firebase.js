@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app'
 import { getAuth } from 'firebase/auth'
-import { getFirestore } from 'firebase/firestore'
+import { initializeFirestore } from 'firebase/firestore'
 import { getStorage } from 'firebase/storage'
 import { getAnalytics, isSupported as analyticsSupported } from 'firebase/analytics'
 import { getMessaging, isSupported as messagingSupported } from 'firebase/messaging'
@@ -31,7 +31,12 @@ if (!firebaseConfigReady) {
 
 const app = firebaseConfigReady ? initializeApp(firebaseConfig) : null
 export const auth = app ? getAuth(app) : null
-export const db = app ? getFirestore(app) : null
+export const db = app
+  ? initializeFirestore(app, {
+      experimentalAutoDetectLongPolling: true,
+      useFetchStreams: false,
+    })
+  : null
 let _storage = null
 try { if (app) _storage = getStorage(app) } catch { /* Storage not enabled yet */ }
 export const storage = _storage
