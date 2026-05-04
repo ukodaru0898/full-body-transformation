@@ -9,6 +9,10 @@ function toFriendlyAuthError(err) {
   if (code === 'auth/invalid-email') return 'Please enter a valid email address.'
   if (code === 'auth/weak-password') return 'Password is too weak. Use at least 6 characters.'
   if (code === 'auth/popup-closed-by-user') return 'Google sign-in popup was closed before completing.'
+  if (code === 'auth/popup-blocked') return 'Popup was blocked. Please allow popups for this site and try again.'
+  if (code === 'auth/unauthorized-domain') return 'This domain is not authorized for Google sign-in. Please contact support.'
+  if (code === 'auth/user-not-found') return 'No account found with this email. Please register first.'
+  if (code === 'auth/wrong-password') return 'Incorrect password. Try again or use Forgot password.'
   if (code === 'auth/too-many-requests') return 'Too many attempts. Please wait a few minutes and try again.'
 
   const cleaned = (err?.message || '')

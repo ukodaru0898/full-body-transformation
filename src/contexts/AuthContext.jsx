@@ -6,7 +6,8 @@ import {
   onAuthStateChanged,
   updateProfile,
   GoogleAuthProvider,
-  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
 } from 'firebase/auth'
 import {
   sendEmailVerification,
@@ -87,11 +88,14 @@ export function AuthProvider({ children }) {
   async function loginWithGoogle() {
     assertFirebaseReady()
     const provider = new GoogleAuthProvider()
-    const { user } = await signInWithPopup(auth, provider)
+    await signInWithRedirect(auth, provider)
+    // page will reload after redirect; result handled in useEffect below
+  }
+
+  async function handleGoogleRedirectResult(user) {
+    if (!user) return
     const snap = await getDoc(doc(db, 'users', user.uid))
-    if (snap.exists()) {
-      setUserProfile(snap.data())
-    } else {
+    if (!snap.exists()) {
       const profile = {
         name: user.displayName || 'User',
         email: user.email,
@@ -106,7 +110,6 @@ export function AuthProvider({ children }) {
       setUserProfile(profile)
     }
     if (analytics) logEvent(analytics, 'login', { method: 'google' })
-    return user
   }
 
   async function forgotPassword(email) {
@@ -131,6 +134,15 @@ export function AuthProvider({ children }) {
     setUserProfile(null)
     return signOut(auth)
   }
+
+  // Handle Google redirect result when returning from accounts.google.com
+  useEffect(() => {
+    if (!firebaseConfigReady || !auth) return
+    getRedirectResult(auth)
+      .then((result) => { if (result?.user) return handleGoogleRedirectResult(result.user) })
+      .catch(() => {}) // silent — redirect result errors are surfaced via onAuthStateChanged
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     if (!firebaseConfigReady || !auth || !db) {
