@@ -329,6 +329,20 @@ export default function Dashboard() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userCoords])
 
+  const getDirectionsUrl = (destinationCoords) => {
+    const [toLat, toLng] = destinationCoords
+    if (userCoords) {
+      const [fromLat, fromLng] = userCoords
+      return `https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=${fromLat}%2C${fromLng}%3B${toLat}%2C${toLng}`
+    }
+    return `https://www.openstreetmap.org/?mlat=${toLat}&mlon=${toLng}#map=16/${toLat}/${toLng}`
+  }
+
+  const openDirections = (destinationCoords) => {
+    const url = getDirectionsUrl(destinationCoords)
+    window.open(url, '_blank', 'noopener,noreferrer')
+  }
+
   const clearReminderTimers = () => {
     reminderTimersRef.current.forEach((id) => window.clearTimeout(id))
     reminderTimersRef.current = []
@@ -773,15 +787,20 @@ export default function Dashboard() {
         {mapResults.length > 0 && (
           <div className="map-results">
             {mapResults.slice(0, 6).map((spot, idx) => (
-              <button
-                key={`${spot.name}-${idx}`}
-                type="button"
-                className="map-result-item"
-                onClick={() => setMapFocus(spot.coords)}
-              >
-                <strong>{spot.name}</strong>
-                <span>{spot.kind}</span>
-              </button>
+              <div className="map-result-item" key={`${spot.name}-${idx}`}>
+                <div className="map-result-copy">
+                  <strong>{spot.name}</strong>
+                  <span>{spot.kind}</span>
+                </div>
+                <div className="map-result-actions">
+                  <button type="button" className="ghost-btn-sm" onClick={() => setMapFocus(spot.coords)}>
+                    Focus
+                  </button>
+                  <button type="button" className="ghost-btn-sm" onClick={() => openDirections(spot.coords)}>
+                    Directions
+                  </button>
+                </div>
+              </div>
             ))}
           </div>
         )}
@@ -809,6 +828,10 @@ export default function Dashboard() {
                   <strong>{spot.name}</strong>
                   <br />
                   {spot.kind}
+                  <br />
+                  <button type="button" className="popup-directions-btn" onClick={() => openDirections(spot.coords)}>
+                    Get Directions
+                  </button>
                 </Popup>
               </Marker>
             ))}

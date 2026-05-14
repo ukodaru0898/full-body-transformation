@@ -201,13 +201,25 @@
   border-radius: 10px;
   background: #f8fbff;
   padding: 9px 10px;
-  text-align: left;
-  cursor: pointer;
-  display: grid;
-  gap: 2px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
 }
+.map-result-copy { display: grid; gap: 2px; }
 .map-result-item strong { font-size: 0.86rem; color: #223a60; }
 .map-result-item span { font-size: 0.78rem; color: #5f7398; text-transform: capitalize; }
+.map-result-actions { display: flex; gap: 6px; }
+.popup-directions-btn {
+  margin-top: 7px;
+  border: 1px solid #d7e2f7;
+  background: #f4f8ff;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  color: #2c4570;
+  padding: 5px 8px;
+  cursor: pointer;
+}
 .map-wrap { border-radius: 16px; overflow: hidden; border: 1px solid #e3ebf8; }
 .fitness-map { height: 320px; width: 100%; }
 
