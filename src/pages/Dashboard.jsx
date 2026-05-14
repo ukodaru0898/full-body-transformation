@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { getToken } from 'firebase/messaging'
 import { messaging } from '../firebase'
+import { analyzeIngredientsText } from '../utils/nutritionAssistant'
 import { Circle, MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png'
@@ -164,6 +165,23 @@ export default function Dashboard() {
   const [notifStatus, setNotifStatus] = useState('')
   const [userCoords, setUserCoords] = useState(null)
   const [mapStatus, setMapStatus] = useState('Finding your location...')
+  const [ingredientText, setIngredientText] = useState('2 eggs\n100g paneer\n1 cup rice\n1 banana')
+  const [nutritionResult, setNutritionResult] = useState(null)
+  const [nutritionError, setNutritionError] = useState('')
+  const [remindersEnabled, setRemindersEnabled] = useState(() => (
+    typeof window !== 'undefined' && localStorage.getItem('fitness-reminders-enabled') === 'true'
+  ))
+  const [reminders, setReminders] = useState(() => {
+    if (typeof window === 'undefined') return []
+    try {
+      return JSON.parse(localStorage.getItem('fitness-reminders') || '[]')
+    } catch {
+      return []
+    }
+  })
+  const [reminderTime, setReminderTime] = useState('18:00')
+  const [reminderTask, setReminderTask] = useState('Workout session')
+  const reminderTimersRef = useRef([])
 
   const mapCenter = userCoords || [17.385, 78.4867]
   const nearbySpots = useMemo(() => {
@@ -201,6 +219,49 @@ export default function Dashboard() {
     )
   }, [])
 
+  const clearReminderTimers = () => {
+    reminderTimersRef.current.forEach((id) => window.clearTimeout(id))
+    reminderTimersRef.current = []
+  }
+
+  const scheduleReminder = (reminder) => {
+    const [hour, minute] = reminder.time.split(':').map((v) => parseInt(v, 10))
+    const now = new Date()
+    const trigger = new Date()
+    trigger.setHours(hour, minute, 0, 0)
+    if (trigger <= now) trigger.setDate(trigger.getDate() + 1)
+
+    const delay = trigger.getTime() - now.getTime()
+    const timerId = window.setTimeout(() => {
+      new Notification('Fitness Reminder', {
+        body: reminder.task,
+        tag: `fitness-reminder-${reminder.id}`,
+      })
+      scheduleReminder(reminder)
+    }, delay)
+
+    reminderTimersRef.current.push(timerId)
+  }
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    localStorage.setItem('fitness-reminders-enabled', String(remindersEnabled))
+  }, [remindersEnabled])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    localStorage.setItem('fitness-reminders', JSON.stringify(reminders))
+  }, [reminders])
+
+  useEffect(() => {
+    clearReminderTimers()
+    if (!remindersEnabled || !reminders.length) return undefined
+    if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return undefined
+
+    reminders.forEach(scheduleReminder)
+    return () => clearReminderTimers()
+  }, [remindersEnabled, reminders])
+
   const handlePhotoUpload = async (e) => {
     const file = e.target.files[0]
     if (!file) return
@@ -216,16 +277,78 @@ export default function Dashboard() {
 
   const requestNotifications = async () => {
     try {
+      if (typeof Notification === 'undefined') {
+        setNotifStatus('This browser does not support notifications.')
+        return
+      }
+
       const permission = await Notification.requestPermission()
       if (permission !== 'granted') { setNotifStatus('Notifications blocked.'); return }
-      if (!messaging) { setNotifStatus('Not supported in this browser.'); return }
-      const token = await getToken(messaging, { vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY })
-      if (token) setNotifStatus('✅ Notifications enabled!')
-      else setNotifStatus('Could not get token. Try again.')
+
+      let status = '✅ Local notifications enabled!'
+      if (messaging && import.meta.env.VITE_FIREBASE_VAPID_KEY) {
+        const token = await getToken(messaging, { vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY })
+        if (token) status = '✅ Push + local notifications enabled!'
+      }
+      setNotifStatus(status)
     } catch {
       setNotifStatus('Could not enable notifications.')
     }
     setTimeout(() => setNotifStatus(''), 4000)
+  }
+
+  const toggleReminders = async () => {
+    const nextValue = !remindersEnabled
+    if (!nextValue) {
+      setRemindersEnabled(false)
+      setNotifStatus('Daily reminders turned off.')
+      setTimeout(() => setNotifStatus(''), 3000)
+      return
+    }
+
+    if (typeof Notification === 'undefined') {
+      setNotifStatus('This browser does not support notifications.')
+      setTimeout(() => setNotifStatus(''), 4000)
+      return
+    }
+
+    let permission = Notification.permission
+    if (permission !== 'granted') permission = await Notification.requestPermission()
+    if (permission !== 'granted') {
+      setNotifStatus('Enable notifications in browser to use reminders.')
+      setTimeout(() => setNotifStatus(''), 4000)
+      return
+    }
+
+    setRemindersEnabled(true)
+    setNotifStatus('✅ Daily reminders enabled!')
+    setTimeout(() => setNotifStatus(''), 3000)
+  }
+
+  const addReminder = () => {
+    if (!reminderTime || !reminderTask.trim()) return
+    const reminder = {
+      id: `${Date.now()}`,
+      time: reminderTime,
+      task: reminderTask.trim(),
+    }
+    setReminders((prev) => [...prev, reminder])
+    setReminderTask('')
+  }
+
+  const deleteReminder = (id) => {
+    setReminders((prev) => prev.filter((r) => r.id !== id))
+  }
+
+  const runNutritionAnalysis = () => {
+    const result = analyzeIngredientsText(ingredientText)
+    if (result.error) {
+      setNutritionError(result.error)
+      setNutritionResult(null)
+      return
+    }
+    setNutritionError('')
+    setNutritionResult(result)
   }
   const toggleToday = async (i) => {
     const key = `today-${i}`
@@ -431,6 +554,84 @@ export default function Dashboard() {
               </Marker>
             ))}
           </MapContainer>
+        </div>
+      </section>
+
+      {/* ── AI NUTRITION ASSISTANT ── */}
+      <section className="section-card">
+        <div className="section-head">
+          <h3>🤖 AI Nutrition Assistant</h3>
+          <span className="badge">Ingredient Analyzer</span>
+        </div>
+        <p className="nutrition-hint">Enter ingredients with quantity (e.g. 2 eggs, 100g paneer, 1 cup rice). The assistant estimates calories, protein, carbs, fat, and fiber.</p>
+
+        <div className="nutrition-input-row">
+          <textarea
+            className="nutrition-input"
+            rows={5}
+            value={ingredientText}
+            onChange={(e) => setIngredientText(e.target.value)}
+            placeholder="2 eggs\n100g chicken\n1 cup rice"
+          />
+          <button className="primary-btn nutrition-btn" onClick={runNutritionAnalysis}>Analyze Meal</button>
+        </div>
+
+        {nutritionError && <p className="auth-error nutrition-error">{nutritionError}</p>}
+
+        {nutritionResult && (
+          <div className="nutrition-result">
+            <div className="nutrition-totals">
+              <div className="nutrition-total-card"><span>Calories</span><strong>{nutritionResult.totals.calories} kcal</strong></div>
+              <div className="nutrition-total-card"><span>Protein</span><strong>{nutritionResult.totals.protein} g</strong></div>
+              <div className="nutrition-total-card"><span>Carbs</span><strong>{nutritionResult.totals.carbs} g</strong></div>
+              <div className="nutrition-total-card"><span>Fat</span><strong>{nutritionResult.totals.fat} g</strong></div>
+            </div>
+
+            <div className="nutrition-list">
+              {nutritionResult.entries.map((entry) => (
+                <div key={`${entry.input}-${entry.matched}`} className="nutrition-item">
+                  <p><strong>{entry.matched}</strong> ({entry.grams} g)</p>
+                  <p>{entry.calories} kcal · P {entry.protein} g · C {entry.carbs} g · F {entry.fat} g</p>
+                </div>
+              ))}
+            </div>
+
+            {nutritionResult.unknown.length > 0 && (
+              <p className="nutrition-unknown">Not recognized: {nutritionResult.unknown.join(', ')}</p>
+            )}
+          </div>
+        )}
+      </section>
+
+      {/* ── SMART REMINDERS ── */}
+      <section className="section-card">
+        <div className="section-head">
+          <h3>⏰ Smart Daily Reminders</h3>
+          <button className="ghost-btn-sm" onClick={toggleReminders}>
+            {remindersEnabled ? 'Turn Off' : 'Turn On'}
+          </button>
+        </div>
+        <p className="map-hint">Reminders trigger only when you turn them on and allow browser notifications.</p>
+
+        <div className="reminder-form">
+          <input type="time" value={reminderTime} onChange={(e) => setReminderTime(e.target.value)} />
+          <input
+            type="text"
+            value={reminderTask}
+            onChange={(e) => setReminderTask(e.target.value)}
+            placeholder="What should we remind you about?"
+          />
+          <button className="primary-btn" onClick={addReminder}>Add Reminder</button>
+        </div>
+
+        <div className="reminder-list">
+          {reminders.length === 0 && <p className="nutrition-hint">No reminders yet. Add your first reminder above.</p>}
+          {reminders.map((reminder) => (
+            <div key={reminder.id} className="reminder-item">
+              <p><strong>{reminder.time}</strong> · {reminder.task}</p>
+              <button className="ghost-btn-sm" onClick={() => deleteReminder(reminder.id)}>Remove</button>
+            </div>
+          ))}
         </div>
       </section>
 

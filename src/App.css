@@ -92,7 +92,7 @@
 .auth-features span { background: rgba(255,255,255,0.07); border-radius: 999px; padding: 6px 14px; font-size: 0.82rem; color: #b8caed; }
 
 .auth-success { color: #65e0a3; font-size: 0.88rem; margin: 4px 0; }
-.auth-forgot { margin: -8px 0 4px; text-align: right; }
+.auth-forgot { margin: 6px 0 10px; text-align: right; }
 .auth-forgot button { background: none; border: none; color: #79a9ff; cursor: pointer; font-size: 0.85rem; padding: 0; text-decoration: underline; }
 
 /* ── AVATAR ── */
@@ -176,6 +176,68 @@
 .map-hint { font-size: 0.84rem; color: #5d6f91; margin: 0 0 12px; background: #f4f8ff; padding: 10px 12px; border-radius: 10px; }
 .map-wrap { border-radius: 16px; overflow: hidden; border: 1px solid #e3ebf8; }
 .fitness-map { height: 320px; width: 100%; }
+
+/* ── AI NUTRITION ── */
+.nutrition-hint { font-size: 0.84rem; color: #5d6f91; margin: 0 0 12px; }
+.nutrition-input-row { display: grid; gap: 10px; }
+.nutrition-input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #d5dfef;
+  border-radius: 12px;
+  padding: 12px;
+  font-size: 0.95rem;
+  resize: vertical;
+  outline: none;
+}
+.nutrition-input:focus { border-color: #4d7aff; }
+.nutrition-btn { width: fit-content; }
+.nutrition-error { margin-top: 10px; }
+.nutrition-result { margin-top: 14px; }
+.nutrition-totals {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.nutrition-total-card {
+  border: 1px solid #e3ebf8;
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: #f8fbff;
+}
+.nutrition-total-card span { display: block; font-size: 0.78rem; color: #64789d; text-transform: uppercase; letter-spacing: 0.05em; }
+.nutrition-total-card strong { font-size: 1rem; color: #1d2f4d; }
+.nutrition-list { display: grid; gap: 8px; }
+.nutrition-item { border: 1px solid #e6edf9; border-radius: 10px; padding: 9px 12px; background: #fff; }
+.nutrition-item p { margin: 2px 0; font-size: 0.87rem; color: #334a6e; }
+.nutrition-unknown { margin: 10px 0 0; font-size: 0.84rem; color: #9a5f20; background: #fff5e8; border-radius: 8px; padding: 8px 10px; }
+
+/* ── REMINDERS ── */
+.reminder-form {
+  display: grid;
+  grid-template-columns: 130px 1fr auto;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.reminder-form input {
+  border: 1px solid #d5dfef;
+  border-radius: 10px;
+  padding: 10px;
+  font-size: 0.9rem;
+}
+.reminder-list { display: grid; gap: 8px; }
+.reminder-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid #e3ebf8;
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: #f9fbff;
+}
+.reminder-item p { margin: 0; font-size: 0.9rem; color: #314768; }
 
 /* ── RINGS ── */
 .health-rings { display: flex; gap: 18px; flex-wrap: wrap; justify-content: center; margin-bottom: 20px; }
@@ -304,4 +366,6 @@
   .app-shell, .auth-panel { padding: 14px; }
   .health-rings { gap: 10px; }
   .fitness-map { height: 260px; }
+  .reminder-form { grid-template-columns: 1fr; }
+  .nutrition-btn { width: 100%; }
 }
