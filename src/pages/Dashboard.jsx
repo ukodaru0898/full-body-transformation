@@ -1,8 +1,13 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { getToken } from 'firebase/messaging'
 import { messaging } from '../firebase'
+import { Circle, MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet'
+import L from 'leaflet'
+import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png'
+import markerIcon from 'leaflet/dist/images/marker-icon.png'
+import markerShadow from 'leaflet/dist/images/marker-shadow.png'
 
 const NAV_PAGES = [
   { id: 'face', label: '🧴 Face', color: '#ff9a5a' },
@@ -33,6 +38,22 @@ const CATEGORY_COLORS = {
   gym: '#ff6b6b',
   hair: '#58b8ff',
   wellness: '#b48eff',
+}
+
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: markerIcon2x,
+  iconUrl: markerIcon,
+  shadowUrl: markerShadow,
+})
+
+function RecenterMap({ center }) {
+  const map = useMap()
+
+  useEffect(() => {
+    map.setView(center, map.getZoom(), { animate: true })
+  }, [center, map])
+
+  return null
 }
 
 function RingProgress({ value, max, color, size = 80, label, sublabel }) {
@@ -141,6 +162,44 @@ export default function Dashboard() {
   const [syncMsg, setSyncMsg] = useState('')
   const [photoUploading, setPhotoUploading] = useState(false)
   const [notifStatus, setNotifStatus] = useState('')
+  const [userCoords, setUserCoords] = useState(null)
+  const [mapStatus, setMapStatus] = useState('Finding your location...')
+
+  const mapCenter = userCoords || [17.385, 78.4867]
+  const nearbySpots = useMemo(() => {
+    if (!userCoords) {
+      return [
+        { name: 'City Fitness Club', kind: 'Gym', coords: [17.3872, 78.4893] },
+        { name: 'Run Track Point', kind: 'Track', coords: [17.383, 78.4832] },
+        { name: 'Yoga Studio', kind: 'Yoga', coords: [17.3898, 78.482] },
+      ]
+    }
+
+    const [lat, lng] = userCoords
+    return [
+      { name: 'Nearby Gym', kind: 'Gym', coords: [lat + 0.0045, lng + 0.0032] },
+      { name: 'Open Park Track', kind: 'Track', coords: [lat - 0.0038, lng + 0.0045] },
+      { name: 'Yoga & Mobility Studio', kind: 'Yoga', coords: [lat + 0.002, lng - 0.0042] },
+    ]
+  }, [userCoords])
+
+  useEffect(() => {
+    if (!('geolocation' in navigator)) {
+      setMapStatus('Location unavailable in this browser. Showing default city map.')
+      return
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setUserCoords([pos.coords.latitude, pos.coords.longitude])
+        setMapStatus('Showing spots near your current location.')
+      },
+      () => {
+        setMapStatus('Location permission denied. Showing default city map.')
+      },
+      { enableHighAccuracy: true, timeout: 8000 }
+    )
+  }, [])
 
   const handlePhotoUpload = async (e) => {
     const file = e.target.files[0]
@@ -334,6 +393,44 @@ export default function Dashboard() {
           <div className="watch-step"><span>2</span> Tap your profile photo → Export All Health Data</div>
           <div className="watch-step"><span>3</span> Save the ZIP, extract export.xml</div>
           <div className="watch-step"><span>4</span> Click "Import Apple Health" above</div>
+        </div>
+      </section>
+
+      {/* ── FREE MAP (OPENSTREETMAP) ── */}
+      <section className="section-card">
+        <div className="section-head">
+          <h3>🗺️ Nearby Fitness Spots (Free Map)</h3>
+          <span className="badge">OpenStreetMap</span>
+        </div>
+        <p className="map-hint">{mapStatus}</p>
+
+        <div className="map-wrap">
+          <MapContainer center={mapCenter} zoom={13} scrollWheelZoom={false} className="fitness-map">
+            <TileLayer
+              attribution='&copy; OpenStreetMap contributors'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
+            <RecenterMap center={mapCenter} />
+
+            {userCoords && (
+              <>
+                <Marker position={userCoords}>
+                  <Popup>You are here</Popup>
+                </Marker>
+                <Circle center={userCoords} radius={1200} pathOptions={{ color: '#2d7ef7', fillColor: '#2d7ef7', fillOpacity: 0.14 }} />
+              </>
+            )}
+
+            {nearbySpots.map((spot) => (
+              <Marker key={spot.name} position={spot.coords}>
+                <Popup>
+                  <strong>{spot.name}</strong>
+                  <br />
+                  {spot.kind}
+                </Popup>
+              </Marker>
+            ))}
+          </MapContainer>
         </div>
       </section>
 

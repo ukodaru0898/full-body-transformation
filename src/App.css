@@ -172,6 +172,11 @@
 .ghost-btn-sm a { color: inherit; text-decoration: none; }
 .health-hint { font-size: 0.83rem; color: #68799a; margin-bottom: 18px; background: #f4f7ff; padding: 10px 14px; border-radius: 10px; }
 
+/* ── MAP ── */
+.map-hint { font-size: 0.84rem; color: #5d6f91; margin: 0 0 12px; background: #f4f8ff; padding: 10px 12px; border-radius: 10px; }
+.map-wrap { border-radius: 16px; overflow: hidden; border: 1px solid #e3ebf8; }
+.fitness-map { height: 320px; width: 100%; }
+
 /* ── RINGS ── */
 .health-rings { display: flex; gap: 18px; flex-wrap: wrap; justify-content: center; margin-bottom: 20px; }
 .ring-wrap { display: flex; flex-direction: column; align-items: center; gap: 6px; }
@@ -298,4 +303,5 @@
   .dash-header-right { text-align: left; }
   .app-shell, .auth-panel { padding: 14px; }
   .health-rings { gap: 10px; }
+  .fitness-map { height: 260px; }
 }
