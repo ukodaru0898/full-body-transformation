@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -33,10 +33,17 @@ export default function AuthPage() {
   const [busy, setBusy] = useState(false)
   const [showPwd, setShowPwd] = useState(false)
   const [resetSent, setResetSent] = useState(false)
-  const { login, register, loginWithGoogle, forgotPassword } = useAuth()
+  const { login, register, loginWithGoogle, forgotPassword, authError, clearAuthError } = useAuth()
   const navigate = useNavigate()
 
   const set = (field) => (e) => setForm((p) => ({ ...p, [field]: e.target.value }))
+
+  useEffect(() => {
+    if (authError) {
+      setError(toFriendlyAuthError(authError))
+      setBusy(false)
+    }
+  }, [authError])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -83,14 +90,14 @@ export default function AuthPage() {
           <button
             type="button"
             className={mode === 'login' ? 'active' : ''}
-            onClick={() => { setMode('login'); setError(''); setResetSent(false) }}
+            onClick={() => { setMode('login'); setError(''); setResetSent(false); clearAuthError() }}
           >
             Login
           </button>
           <button
             type="button"
             className={mode === 'register' ? 'active' : ''}
-            onClick={() => { setMode('register'); setError(''); setResetSent(false) }}
+            onClick={() => { setMode('register'); setError(''); setResetSent(false); clearAuthError() }}
           >
             Register
           </button>
@@ -166,7 +173,7 @@ export default function AuthPage() {
 
         {mode === 'login' && (
           <p className="auth-forgot">
-            <button type="button" onClick={() => { setMode('forgot'); setError(''); setResetSent(false) }}>
+            <button type="button" onClick={() => { setMode('forgot'); setError(''); setResetSent(false); clearAuthError() }}>
               Forgot password?
             </button>
           </p>
@@ -180,6 +187,7 @@ export default function AuthPage() {
           disabled={busy}
           onClick={async () => {
             setError('')
+            clearAuthError()
             setBusy(true)
             try {
               await loginWithGoogle()
@@ -203,7 +211,7 @@ export default function AuthPage() {
           {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
           <button
             type="button"
-            onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(''); setResetSent(false) }}
+            onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(''); setResetSent(false); clearAuthError() }}
           >
             {mode === 'login' ? 'Register for free' : 'Log in'}
           </button>

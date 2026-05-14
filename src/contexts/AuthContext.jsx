@@ -28,6 +28,7 @@ export function useAuth() {
 export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null)
   const [userProfile, setUserProfile] = useState(null)
+  const [authError, setAuthError] = useState(null)
   const [loading, setLoading] = useState(true)
 
   function assertFirebaseReady() {
@@ -87,7 +88,9 @@ export function AuthProvider({ children }) {
 
   async function loginWithGoogle() {
     assertFirebaseReady()
+    setAuthError(null)
     const provider = new GoogleAuthProvider()
+    provider.setCustomParameters({ prompt: 'select_account' })
     await signInWithRedirect(auth, provider)
     // page will reload after redirect; result handled in useEffect below
   }
@@ -135,12 +138,17 @@ export function AuthProvider({ children }) {
     return signOut(auth)
   }
 
+  function clearAuthError() {
+    setAuthError(null)
+  }
+
   // Handle Google redirect result when returning from accounts.google.com
   useEffect(() => {
     if (!firebaseConfigReady || !auth) return
+    setAuthError(null)
     getRedirectResult(auth)
       .then((result) => { if (result?.user) return handleGoogleRedirectResult(result.user) })
-      .catch(() => {}) // silent — redirect result errors are surfaced via onAuthStateChanged
+      .catch((err) => { setAuthError(err) })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -168,7 +176,7 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider
-      value={{ currentUser, userProfile, register, login, loginWithGoogle, forgotPassword, uploadProfilePhoto, logout, saveCompletedTasks, saveHealthData }}
+      value={{ currentUser, userProfile, authError, clearAuthError, register, login, loginWithGoogle, forgotPassword, uploadProfilePhoto, logout, saveCompletedTasks, saveHealthData }}
     >
       {!loading && children}
     </AuthContext.Provider>
