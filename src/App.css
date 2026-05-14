@@ -192,6 +192,7 @@
 }
 .nutrition-input:focus { border-color: #4d7aff; }
 .nutrition-btn { width: fit-content; }
+.nutrition-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 .nutrition-error { margin-top: 10px; }
 .nutrition-result { margin-top: 14px; }
 .nutrition-totals {
@@ -212,6 +213,24 @@
 .nutrition-item { border: 1px solid #e6edf9; border-radius: 10px; padding: 9px 12px; background: #fff; }
 .nutrition-item p { margin: 2px 0; font-size: 0.87rem; color: #334a6e; }
 .nutrition-unknown { margin: 10px 0 0; font-size: 0.84rem; color: #9a5f20; background: #fff5e8; border-radius: 8px; padding: 8px 10px; }
+
+/* ── DAILY MACRO PROGRESS ── */
+.macro-section { margin-top: 16px; border-top: 1px solid #e8eef8; padding-top: 14px; }
+.macro-head { margin-bottom: 10px; }
+.macro-goals-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+.macro-goals-grid label { display: grid; gap: 5px; font-size: 0.82rem; color: #5c6f93; font-weight: 600; }
+.macro-goals-grid input {
+  border: 1px solid #d5dfef;
+  border-radius: 10px;
+  padding: 9px;
+  font-size: 0.9rem;
+}
+.macro-progress-list { margin-top: 12px; display: grid; gap: 10px; }
+.macro-progress-item { background: #f8fbff; border: 1px solid #e3ebf8; border-radius: 12px; padding: 10px 12px; }
+.macro-progress-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 7px; }
+.macro-progress-top p { margin: 0; font-size: 0.85rem; color: #314768; }
+.macro-progress-track { height: 8px; border-radius: 999px; background: #e8eef8; overflow: hidden; }
+.macro-progress-fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, #23b6c9, #5f7cff); transition: width 0.35s ease; }
 
 /* ── REMINDERS ── */
 .reminder-form {
@@ -238,6 +257,9 @@
   background: #f9fbff;
 }
 .reminder-item p { margin: 0; font-size: 0.9rem; color: #314768; }
+.reminder-suggestions { margin-top: 14px; border-top: 1px dashed #d9e3f5; padding-top: 12px; }
+.reminder-suggestion-head { margin-bottom: 8px; }
+.reminder-suggestion-list { display: grid; gap: 8px; }
 
 /* ── RINGS ── */
 .health-rings { display: flex; gap: 18px; flex-wrap: wrap; justify-content: center; margin-bottom: 20px; }
@@ -367,5 +389,6 @@
   .health-rings { gap: 10px; }
   .fitness-map { height: 260px; }
   .reminder-form { grid-template-columns: 1fr; }
+  .nutrition-actions { display: grid; }
   .nutrition-btn { width: 100%; }
 }

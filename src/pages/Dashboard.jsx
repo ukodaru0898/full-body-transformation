@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { getToken } from 'firebase/messaging'
 import { messaging } from '../firebase'
 import { analyzeIngredientsText } from '../utils/nutritionAssistant'
+import { jsPDF } from 'jspdf'
 import { Circle, MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png'
@@ -39,6 +40,31 @@ const CATEGORY_COLORS = {
   gym: '#ff6b6b',
   hair: '#58b8ff',
   wellness: '#b48eff',
+}
+
+const DEFAULT_MACRO_GOALS = {
+  calories: 2200,
+  protein: 140,
+  carbs: 250,
+  fat: 70,
+}
+
+const ZERO_MACROS = {
+  calories: 0,
+  protein: 0,
+  carbs: 0,
+  fat: 0,
+}
+
+function to24Hour(timeLabel) {
+  const m = timeLabel.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i)
+  if (!m) return '08:00'
+  let hour = parseInt(m[1], 10)
+  const minute = m[2]
+  const meridian = m[3].toUpperCase()
+  if (meridian === 'PM' && hour !== 12) hour += 12
+  if (meridian === 'AM' && hour === 12) hour = 0
+  return `${String(hour).padStart(2, '0')}:${minute}`
 }
 
 L.Icon.Default.mergeOptions({
@@ -182,6 +208,25 @@ export default function Dashboard() {
   const [reminderTime, setReminderTime] = useState('18:00')
   const [reminderTask, setReminderTask] = useState('Workout session')
   const reminderTimersRef = useRef([])
+  const todayKey = new Date().toISOString().slice(0, 10)
+  const [dailyMacros, setDailyMacros] = useState(() => {
+    if (typeof window === 'undefined') return ZERO_MACROS
+    try {
+      const stored = JSON.parse(localStorage.getItem('daily-macro-totals') || 'null')
+      if (stored?.date === new Date().toISOString().slice(0, 10) && stored?.totals) return stored.totals
+      return ZERO_MACROS
+    } catch {
+      return ZERO_MACROS
+    }
+  })
+  const [macroGoals, setMacroGoals] = useState(() => {
+    if (typeof window === 'undefined') return DEFAULT_MACRO_GOALS
+    try {
+      return JSON.parse(localStorage.getItem('daily-macro-goals') || 'null') || DEFAULT_MACRO_GOALS
+    } catch {
+      return DEFAULT_MACRO_GOALS
+    }
+  })
 
   const mapCenter = userCoords || [17.385, 78.4867]
   const nearbySpots = useMemo(() => {
@@ -200,6 +245,13 @@ export default function Dashboard() {
       { name: 'Yoga & Mobility Studio', kind: 'Yoga', coords: [lat + 0.002, lng - 0.0042] },
     ]
   }, [userCoords])
+
+  const suggestedReminders = useMemo(() => {
+    return TODAY_SCHEDULE
+      .filter((item) => ['food', 'gym', 'wellness'].includes(item.category))
+      .map((item) => ({ time: to24Hour(item.time), task: item.task }))
+      .filter((suggestion) => !reminders.some((r) => r.time === suggestion.time && r.task === suggestion.task))
+  }, [reminders])
 
   useEffect(() => {
     if (!('geolocation' in navigator)) {
@@ -252,6 +304,16 @@ export default function Dashboard() {
     if (typeof window === 'undefined') return
     localStorage.setItem('fitness-reminders', JSON.stringify(reminders))
   }, [reminders])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    localStorage.setItem('daily-macro-goals', JSON.stringify(macroGoals))
+  }, [macroGoals])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    localStorage.setItem('daily-macro-totals', JSON.stringify({ date: todayKey, totals: dailyMacros }))
+  }, [dailyMacros, todayKey])
 
   useEffect(() => {
     clearReminderTimers()
@@ -327,6 +389,13 @@ export default function Dashboard() {
 
   const addReminder = () => {
     if (!reminderTime || !reminderTask.trim()) return
+    const duplicate = reminders.some((r) => r.time === reminderTime && r.task.toLowerCase() === reminderTask.trim().toLowerCase())
+    if (duplicate) {
+      setNotifStatus('Reminder already exists for this time/task.')
+      setTimeout(() => setNotifStatus(''), 2500)
+      return
+    }
+
     const reminder = {
       id: `${Date.now()}`,
       time: reminderTime,
@@ -340,6 +409,16 @@ export default function Dashboard() {
     setReminders((prev) => prev.filter((r) => r.id !== id))
   }
 
+  const addSuggestedReminder = (time, task) => {
+    const duplicate = reminders.some((r) => r.time === time && r.task === task)
+    if (duplicate) return
+    setReminders((prev) => [...prev, { id: `${Date.now()}-${Math.random()}`, time, task }])
+  }
+
+  const addAllSuggestedReminders = () => {
+    suggestedReminders.forEach((item) => addSuggestedReminder(item.time, item.task))
+  }
+
   const runNutritionAnalysis = () => {
     const result = analyzeIngredientsText(ingredientText)
     if (result.error) {
@@ -349,6 +428,69 @@ export default function Dashboard() {
     }
     setNutritionError('')
     setNutritionResult(result)
+  }
+
+  const exportMealReportPDF = () => {
+    if (!nutritionResult) return
+    const doc = new jsPDF()
+    const generatedAt = new Date().toLocaleString()
+
+    doc.setFontSize(18)
+    doc.text('Meal Nutrition Report', 14, 18)
+    doc.setFontSize(10)
+    doc.text(`Generated: ${generatedAt}`, 14, 25)
+
+    let y = 34
+    doc.setFontSize(12)
+    nutritionResult.entries.forEach((entry, i) => {
+      if (y > 270) {
+        doc.addPage()
+        y = 20
+      }
+      doc.text(`${i + 1}. ${entry.matched} (${entry.grams} g)`, 14, y)
+      y += 6
+      doc.setFontSize(10)
+      doc.text(`Calories: ${entry.calories} kcal | Protein: ${entry.protein} g | Carbs: ${entry.carbs} g | Fat: ${entry.fat} g`, 18, y)
+      y += 9
+      doc.setFontSize(12)
+    })
+
+    y += 4
+    doc.setFontSize(13)
+    doc.text('Totals', 14, y)
+    y += 8
+    doc.setFontSize(11)
+    doc.text(`Calories: ${nutritionResult.totals.calories} kcal`, 14, y)
+    y += 6
+    doc.text(`Protein: ${nutritionResult.totals.protein} g`, 14, y)
+    y += 6
+    doc.text(`Carbs: ${nutritionResult.totals.carbs} g`, 14, y)
+    y += 6
+    doc.text(`Fat: ${nutritionResult.totals.fat} g`, 14, y)
+
+    doc.save(`meal-report-${todayKey}.pdf`)
+  }
+
+  const addMealToDailyProgress = () => {
+    if (!nutritionResult) return
+    setDailyMacros((prev) => ({
+      calories: +(prev.calories + nutritionResult.totals.calories).toFixed(1),
+      protein: +(prev.protein + nutritionResult.totals.protein).toFixed(1),
+      carbs: +(prev.carbs + nutritionResult.totals.carbs).toFixed(1),
+      fat: +(prev.fat + nutritionResult.totals.fat).toFixed(1),
+    }))
+    setNotifStatus('✅ Meal added to daily macro tracker.')
+    setTimeout(() => setNotifStatus(''), 2500)
+  }
+
+  const resetDailyMacros = () => {
+    setDailyMacros(ZERO_MACROS)
+    setNotifStatus('Daily macro tracker reset.')
+    setTimeout(() => setNotifStatus(''), 2500)
+  }
+
+  const updateMacroGoal = (field, value) => {
+    setMacroGoals((prev) => ({ ...prev, [field]: Math.max(0, Number(value) || 0) }))
   }
   const toggleToday = async (i) => {
     const key = `today-${i}`
@@ -573,7 +715,11 @@ export default function Dashboard() {
             onChange={(e) => setIngredientText(e.target.value)}
             placeholder="2 eggs\n100g chicken\n1 cup rice"
           />
-          <button className="primary-btn nutrition-btn" onClick={runNutritionAnalysis}>Analyze Meal</button>
+          <div className="nutrition-actions">
+            <button className="primary-btn nutrition-btn" onClick={runNutritionAnalysis}>Analyze Meal</button>
+            <button className="ghost-btn nutrition-btn" onClick={addMealToDailyProgress} disabled={!nutritionResult}>Add To Daily</button>
+            <button className="ghost-btn nutrition-btn" onClick={exportMealReportPDF} disabled={!nutritionResult}>Export PDF</button>
+          </div>
         </div>
 
         {nutritionError && <p className="auth-error nutrition-error">{nutritionError}</p>}
@@ -601,6 +747,56 @@ export default function Dashboard() {
             )}
           </div>
         )}
+
+        <div className="macro-section">
+          <div className="section-head macro-head">
+            <h3>🎯 Daily Macro Target Progress</h3>
+            <button className="ghost-btn-sm" onClick={resetDailyMacros}>Reset Today</button>
+          </div>
+
+          <div className="macro-goals-grid">
+            <label>
+              Calories Goal
+              <input type="number" min="0" value={macroGoals.calories} onChange={(e) => updateMacroGoal('calories', e.target.value)} />
+            </label>
+            <label>
+              Protein Goal (g)
+              <input type="number" min="0" value={macroGoals.protein} onChange={(e) => updateMacroGoal('protein', e.target.value)} />
+            </label>
+            <label>
+              Carbs Goal (g)
+              <input type="number" min="0" value={macroGoals.carbs} onChange={(e) => updateMacroGoal('carbs', e.target.value)} />
+            </label>
+            <label>
+              Fat Goal (g)
+              <input type="number" min="0" value={macroGoals.fat} onChange={(e) => updateMacroGoal('fat', e.target.value)} />
+            </label>
+          </div>
+
+          <div className="macro-progress-list">
+            {[
+              { key: 'calories', label: 'Calories', unit: 'kcal' },
+              { key: 'protein', label: 'Protein', unit: 'g' },
+              { key: 'carbs', label: 'Carbs', unit: 'g' },
+              { key: 'fat', label: 'Fat', unit: 'g' },
+            ].map((m) => {
+              const consumed = dailyMacros[m.key]
+              const target = macroGoals[m.key] || 1
+              const pct = Math.min((consumed / target) * 100, 100)
+              return (
+                <div key={m.key} className="macro-progress-item">
+                  <div className="macro-progress-top">
+                    <p>{m.label}</p>
+                    <p>{consumed} / {target} {m.unit}</p>
+                  </div>
+                  <div className="macro-progress-track">
+                    <div className="macro-progress-fill" style={{ width: `${pct}%` }} />
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
       </section>
 
       {/* ── SMART REMINDERS ── */}
@@ -632,6 +828,22 @@ export default function Dashboard() {
               <button className="ghost-btn-sm" onClick={() => deleteReminder(reminder.id)}>Remove</button>
             </div>
           ))}
+        </div>
+
+        <div className="reminder-suggestions">
+          <div className="section-head reminder-suggestion-head">
+            <h3>✨ Auto Suggestions From Today Schedule</h3>
+            <button className="ghost-btn-sm" onClick={addAllSuggestedReminders} disabled={suggestedReminders.length === 0}>Add All</button>
+          </div>
+          {suggestedReminders.length === 0 && <p className="nutrition-hint">All suggested reminders already added.</p>}
+          <div className="reminder-suggestion-list">
+            {suggestedReminders.map((item) => (
+              <div className="reminder-item" key={`${item.time}-${item.task}`}>
+                <p><strong>{item.time}</strong> · {item.task}</p>
+                <button className="ghost-btn-sm" onClick={() => addSuggestedReminder(item.time, item.task)}>Add</button>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
