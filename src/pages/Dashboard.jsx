@@ -42,6 +42,8 @@ const CATEGORY_COLORS = {
   wellness: '#b48eff',
 }
 
+const MAP_QUICK_SEARCHES = ['gym', 'park', 'yoga', 'healthy food']
+
 const DEFAULT_MACRO_GOALS = {
   calories: 2200,
   protein: 140,
@@ -190,7 +192,12 @@ export default function Dashboard() {
   const [photoUploading, setPhotoUploading] = useState(false)
   const [notifStatus, setNotifStatus] = useState('')
   const [userCoords, setUserCoords] = useState(null)
+  const [mapFocus, setMapFocus] = useState(null)
   const [mapStatus, setMapStatus] = useState('Finding your location...')
+  const [mapQuery, setMapQuery] = useState('gym')
+  const [mapResults, setMapResults] = useState([])
+  const [mapSearchLoading, setMapSearchLoading] = useState(false)
+  const [mapSearchError, setMapSearchError] = useState('')
   const [ingredientText, setIngredientText] = useState('2 eggs\n100g paneer\n1 cup rice\n1 banana')
   const [nutritionResult, setNutritionResult] = useState(null)
   const [nutritionError, setNutritionError] = useState('')
@@ -228,7 +235,7 @@ export default function Dashboard() {
     }
   })
 
-  const mapCenter = userCoords || [17.385, 78.4867]
+  const mapCenter = mapFocus || userCoords || [17.385, 78.4867]
   const nearbySpots = useMemo(() => {
     if (!userCoords) {
       return [
@@ -245,6 +252,7 @@ export default function Dashboard() {
       { name: 'Yoga & Mobility Studio', kind: 'Yoga', coords: [lat + 0.002, lng - 0.0042] },
     ]
   }, [userCoords])
+  const displayedSpots = mapResults.length ? mapResults : nearbySpots
 
   const suggestedReminders = useMemo(() => {
     return TODAY_SCHEDULE
@@ -270,6 +278,56 @@ export default function Dashboard() {
       { enableHighAccuracy: true, timeout: 8000 }
     )
   }, [])
+
+  const searchMapPlaces = async (term, center = mapCenter) => {
+    const query = term.trim()
+    if (!query) return
+
+    setMapSearchLoading(true)
+    setMapSearchError('')
+
+    try {
+      const [lat, lng] = center
+      const latDelta = 0.12
+      const lngDelta = 0.12
+      const left = (lng - lngDelta).toFixed(4)
+      const right = (lng + lngDelta).toFixed(4)
+      const top = (lat + latDelta).toFixed(4)
+      const bottom = (lat - latDelta).toFixed(4)
+
+      const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(query)}&limit=12&addressdetails=1&viewbox=${left},${top},${right},${bottom}&bounded=1`
+      const response = await fetch(url, {
+        headers: {
+          Accept: 'application/json',
+        },
+      })
+
+      if (!response.ok) throw new Error('Could not fetch places.')
+      const rows = await response.json()
+      const places = rows.map((row) => ({
+        name: row.display_name?.split(',').slice(0, 2).join(', ') || 'Unknown place',
+        kind: row.type || row.category || 'place',
+        coords: [parseFloat(row.lat), parseFloat(row.lon)],
+      }))
+
+      setMapResults(places)
+      if (places.length) {
+        setMapFocus(places[0].coords)
+        setMapStatus(`Showing ${places.length} search result(s) for "${query}".`)
+      } else {
+        setMapStatus(`No results found for "${query}" near your area.`)
+      }
+    } catch {
+      setMapSearchError('Search failed. Please try again in a few seconds.')
+    } finally {
+      setMapSearchLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    searchMapPlaces('gym', mapCenter)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userCoords])
 
   const clearReminderTimers = () => {
     reminderTimersRef.current.forEach((id) => window.clearTimeout(id))
@@ -668,6 +726,65 @@ export default function Dashboard() {
           <span className="badge">OpenStreetMap</span>
         </div>
         <p className="map-hint">{mapStatus}</p>
+        <div className="map-controls">
+          <input
+            className="map-search-input"
+            value={mapQuery}
+            onChange={(e) => setMapQuery(e.target.value)}
+            placeholder="Search gyms, parks, yoga, healthy food..."
+          />
+          <button
+            className="primary-btn map-search-btn"
+            onClick={() => searchMapPlaces(mapQuery)}
+            disabled={mapSearchLoading}
+          >
+            {mapSearchLoading ? 'Searching...' : 'Search'}
+          </button>
+          <button
+            className="ghost-btn-sm"
+            onClick={() => {
+              if (userCoords) {
+                setMapFocus(userCoords)
+                setMapStatus('Centered on your current location.')
+              }
+            }}
+          >
+            Use My Location
+          </button>
+        </div>
+
+        <div className="map-quick-filters">
+          {MAP_QUICK_SEARCHES.map((tag) => (
+            <button
+              key={tag}
+              type="button"
+              className="ghost-btn-sm"
+              onClick={() => {
+                setMapQuery(tag)
+                searchMapPlaces(tag)
+              }}
+            >
+              {tag}
+            </button>
+          ))}
+        </div>
+
+        {mapSearchError && <p className="auth-error nutrition-error">{mapSearchError}</p>}
+        {mapResults.length > 0 && (
+          <div className="map-results">
+            {mapResults.slice(0, 6).map((spot, idx) => (
+              <button
+                key={`${spot.name}-${idx}`}
+                type="button"
+                className="map-result-item"
+                onClick={() => setMapFocus(spot.coords)}
+              >
+                <strong>{spot.name}</strong>
+                <span>{spot.kind}</span>
+              </button>
+            ))}
+          </div>
+        )}
 
         <div className="map-wrap">
           <MapContainer center={mapCenter} zoom={13} scrollWheelZoom={false} className="fitness-map">
@@ -686,7 +803,7 @@ export default function Dashboard() {
               </>
             )}
 
-            {nearbySpots.map((spot) => (
+            {displayedSpots.map((spot) => (
               <Marker key={spot.name} position={spot.coords}>
                 <Popup>
                   <strong>{spot.name}</strong>

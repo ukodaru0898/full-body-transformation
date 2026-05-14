@@ -174,6 +174,40 @@
 
 /* ── MAP ── */
 .map-hint { font-size: 0.84rem; color: #5d6f91; margin: 0 0 12px; background: #f4f8ff; padding: 10px 12px; border-radius: 10px; }
+.map-controls {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.map-search-input {
+  border: 1px solid #d5dfef;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.9rem;
+  outline: none;
+}
+.map-search-input:focus { border-color: #4d7aff; }
+.map-search-btn { padding: 10px 14px; font-size: 0.9rem; }
+.map-quick-filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.map-results {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.map-result-item {
+  border: 1px solid #dce7f8;
+  border-radius: 10px;
+  background: #f8fbff;
+  padding: 9px 10px;
+  text-align: left;
+  cursor: pointer;
+  display: grid;
+  gap: 2px;
+}
+.map-result-item strong { font-size: 0.86rem; color: #223a60; }
+.map-result-item span { font-size: 0.78rem; color: #5f7398; text-transform: capitalize; }
 .map-wrap { border-radius: 16px; overflow: hidden; border: 1px solid #e3ebf8; }
 .fitness-map { height: 320px; width: 100%; }
 
@@ -388,6 +422,7 @@
   .app-shell, .auth-panel { padding: 14px; }
   .health-rings { gap: 10px; }
   .fitness-map { height: 260px; }
+  .map-controls { grid-template-columns: 1fr; }
   .reminder-form { grid-template-columns: 1fr; }
   .nutrition-actions { display: grid; }
   .nutrition-btn { width: 100%; }
