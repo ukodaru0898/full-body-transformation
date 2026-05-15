@@ -1,7 +1,17 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { generatePersonalizedPlan } from '../utils/aiPlanner'
+import { Alert, AlertDescription, AlertTitle } from '../components/ui/alert'
+import { Badge } from '../components/ui/badge'
+import { Button } from '../components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
+import { Input } from '../components/ui/input'
+import { Label } from '../components/ui/label'
+import { Progress } from '../components/ui/progress'
+import { Select } from '../components/ui/select'
+import { Separator } from '../components/ui/separator'
+import { Textarea } from '../components/ui/textarea'
 
 const STEPS = [
   {
@@ -121,6 +131,7 @@ export default function OnboardingPage() {
   const [progress, setProgress] = useState('')
 
   const currentStep = STEPS[step]
+  const progressValue = useMemo(() => ((step + 1) / STEP_COUNT) * 100, [step])
 
   function handleChoice(field, value) {
     setAnswers((prev) => ({ ...prev, [field]: value }))
@@ -174,140 +185,138 @@ export default function OnboardingPage() {
 
   if (generating) {
     return (
-      <div className="onboarding-overlay">
-        <div className="onboarding-generating">
-          <div className="onboarding-spinner" />
-          <h2>Building Your Plan</h2>
-          <p className="onboarding-progress-text">{progress}</p>
-          <div className="onboarding-steps-mini">
-            <div className="mini-step done">✓ Profile collected</div>
-            <div className={`mini-step ${progress.includes('AI') || progress.includes('Saving') || progress.includes('Done') ? 'done' : 'active'}`}>
-              {progress.includes('AI') ? '⏳' : progress.includes('Saving') || progress.includes('Done') ? '✓' : '⏳'} Generating AI plan
+      <div className="onboarding-page">
+        <Card className="onboarding-card onboarding-generating-card">
+          <CardHeader className="onboarding-header">
+            <Badge variant="secondary">AI personalization</Badge>
+            <CardTitle>Building Your Plan</CardTitle>
+            <CardDescription>{progress}</CardDescription>
+          </CardHeader>
+          <CardContent className="onboarding-generating-content">
+            <Progress value={progress.includes('Done') ? 100 : progress.includes('Saving') ? 80 : progress.includes('AI') ? 55 : 25} />
+            <div className="onboarding-steps-mini">
+              <div className="mini-step done">✓ Profile collected</div>
+              <div className={`mini-step ${progress.includes('AI') || progress.includes('Saving') || progress.includes('Done') ? 'done' : 'active'}`}>
+                {progress.includes('AI') ? '⏳' : progress.includes('Saving') || progress.includes('Done') ? '✓' : '⏳'} Generating AI plan
+              </div>
+              <div className={`mini-step ${progress.includes('Saving') || progress.includes('Done') ? 'done' : ''}`}>
+                {progress.includes('Done') ? '✓' : '⏳'} Saving to your account
+              </div>
             </div>
-            <div className={`mini-step ${progress.includes('Saving') || progress.includes('Done') ? 'done' : ''}`}>
-              {progress.includes('Done') ? '✓' : '⏳'} Saving to your account
-            </div>
-          </div>
-          {error && (
-            <div className="onboarding-error">
-              <p>{error}</p>
-              <button className="primary-btn" onClick={() => { setGenerating(false); setError(''); setProgress('') }}>
-                Try Again
-              </button>
-            </div>
-          )}
-        </div>
+            {error && (
+              <Alert variant="destructive">
+                <AlertTitle>Generation failed</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+                <div style={{ marginTop: '0.8rem' }}>
+                  <Button onClick={() => { setGenerating(false); setError(''); setProgress('') }}>Try Again</Button>
+                </div>
+              </Alert>
+            )}
+          </CardContent>
+        </Card>
       </div>
     )
   }
 
   return (
     <div className="onboarding-page">
-      <div className="onboarding-card">
-        {/* Header */}
-        <div className="onboarding-header">
-          <div className="onboarding-logo">✨ FitAI</div>
-          <p className="onboarding-welcome">
-            Welcome{currentUser?.displayName ? `, ${currentUser.displayName.split(' ')[0]}` : ''}! Let's personalize your plan.
-          </p>
-        </div>
+      <Card className="onboarding-card">
+        <CardHeader className="onboarding-header">
+          <Badge variant="secondary">FitAI onboarding</Badge>
+          <CardTitle>Welcome{currentUser?.displayName ? `, ${currentUser.displayName.split(' ')[0]}` : ''}</CardTitle>
+          <CardDescription>Tell us about your goals, body, skin, and hair so we can personalize everything.</CardDescription>
+        </CardHeader>
 
-        {/* Progress bar */}
-        <div className="onboarding-progress-bar">
-          <div
-            className="onboarding-progress-fill"
-            style={{ width: `${((step + 1) / STEP_COUNT) * 100}%` }}
-          />
-        </div>
-        <p className="onboarding-step-count">Step {step + 1} of {STEP_COUNT}</p>
+        <CardContent>
+          <Progress value={progressValue} />
+          <p className="onboarding-step-count">Step {step + 1} of {STEP_COUNT}</p>
 
-        {/* Step content */}
-        <div className="onboarding-step">
-          <h2 className="onboarding-step-title">{currentStep.title}</h2>
-          <p className="onboarding-step-subtitle">{currentStep.subtitle}</p>
+          <Separator />
 
-          {currentStep.type === 'choice' && (
-            <div className="onboarding-choices">
-              {currentStep.options.map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  className={`onboarding-choice ${answers[currentStep.field] === opt.value ? 'selected' : ''}`}
-                  onClick={() => handleChoice(currentStep.field, opt.value)}
-                >
-                  <span className="choice-label">{opt.label}</span>
-                  <span className="choice-desc">{opt.desc}</span>
-                </button>
-              ))}
-            </div>
+          <div className="onboarding-step">
+            <h2 className="onboarding-step-title">{currentStep.title}</h2>
+            <p className="onboarding-step-subtitle">{currentStep.subtitle}</p>
+
+            {currentStep.type === 'choice' && (
+              <div className="onboarding-choices">
+                {currentStep.options.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    className={`onboarding-choice ${answers[currentStep.field] === opt.value ? 'selected' : ''}`}
+                    onClick={() => handleChoice(currentStep.field, opt.value)}
+                  >
+                    <span className="choice-label">{opt.label}</span>
+                    <span className="choice-desc">{opt.desc}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {currentStep.type === 'form' && (
+              <div className="onboarding-form">
+                {currentStep.fields.map((f) => (
+                  <div key={f.field} className="onboarding-field">
+                    <Label>{f.label}</Label>
+                    {f.type === 'select' ? (
+                      <Select value={answers[f.field]} onChange={(e) => handleFormField(f.field, e.target.value)}>
+                        <option value="">Select {f.label.toLowerCase()}...</option>
+                        {f.options.map((o) => (
+                          <option key={o} value={o}>{o}</option>
+                        ))}
+                      </Select>
+                    ) : (
+                      <Input
+                        type={f.type}
+                        placeholder={f.placeholder}
+                        min={f.min}
+                        max={f.max}
+                        value={answers[f.field]}
+                        onChange={(e) => handleFormField(f.field, e.target.value)}
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {step === STEP_COUNT - 1 && (
+              <div className="onboarding-notes">
+                <Label>Anything else? (optional)</Label>
+                <Textarea
+                  rows={3}
+                  placeholder="Any injuries, health conditions, time constraints, specific preferences..."
+                  value={answers.additionalNotes}
+                  onChange={(e) => setAnswers((prev) => ({ ...prev, additionalNotes: e.target.value }))}
+                />
+              </div>
+            )}
+          </div>
+
+          {error && (
+            <Alert variant="destructive" style={{ marginTop: '1rem' }}>
+              <AlertTitle>Unable to continue</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
           )}
 
-          {currentStep.type === 'form' && (
-            <div className="onboarding-form">
-              {currentStep.fields.map((f) => (
-                <div key={f.field} className="onboarding-field">
-                  <label className="onboarding-label">{f.label}</label>
-                  {f.type === 'select' ? (
-                    <select
-                      className="onboarding-select"
-                      value={answers[f.field]}
-                      onChange={(e) => handleFormField(f.field, e.target.value)}
-                    >
-                      <option value="">Select {f.label.toLowerCase()}...</option>
-                      {f.options.map((o) => (
-                        <option key={o} value={o}>{o}</option>
-                      ))}
-                    </select>
-                  ) : (
-                    <input
-                      className="onboarding-input"
-                      type={f.type}
-                      placeholder={f.placeholder}
-                      min={f.min}
-                      max={f.max}
-                      value={answers[f.field]}
-                      onChange={(e) => handleFormField(f.field, e.target.value)}
-                    />
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Notes on last step */}
-          {step === STEP_COUNT - 1 && (
-            <div className="onboarding-notes">
-              <label className="onboarding-label">Anything else? (optional)</label>
-              <textarea
-                className="onboarding-textarea"
-                rows={3}
-                placeholder="Any injuries, health conditions, time constraints, specific preferences..."
-                value={answers.additionalNotes}
-                onChange={(e) => setAnswers((prev) => ({ ...prev, additionalNotes: e.target.value }))}
-              />
-            </div>
-          )}
-        </div>
-
-        {error && <p className="auth-error onboarding-error-inline">{error}</p>}
-
-        {/* Navigation */}
-        <div className="onboarding-nav">
-          {step > 0 && (
-            <button type="button" className="ghost-btn onboarding-back-btn" onClick={goBack}>
-              ← Back
-            </button>
-          )}
-          <button
-            type="button"
-            className="primary-btn onboarding-next-btn"
-            onClick={goNext}
-            disabled={!isStepComplete()}
-          >
-            {step === STEP_COUNT - 1 ? '🚀 Generate My Plan' : 'Continue →'}
-          </button>
-        </div>
-      </div>
+          <div className="onboarding-nav">
+            {step > 0 && (
+              <Button type="button" variant="outline" className="onboarding-back-btn" onClick={goBack}>
+                Back
+              </Button>
+            )}
+            <Button
+              type="button"
+              className="onboarding-next-btn"
+              onClick={goNext}
+              disabled={!isStepComplete()}
+            >
+              {step === STEP_COUNT - 1 ? 'Generate My Plan' : 'Continue'}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }
