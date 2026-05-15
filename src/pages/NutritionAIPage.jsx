@@ -1,8 +1,15 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
 import { analyzeIngredientsText } from '../utils/nutritionAssistant'
 import { analyzeMealWithAI } from '../utils/aiPlanner'
-import { useAuth } from '../contexts/AuthContext'
+import { Alert, AlertDescription, AlertTitle } from '../components/ui/alert'
+import { Badge } from '../components/ui/badge'
+import { Button } from '../components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
+import { Progress } from '../components/ui/progress'
+import { Separator } from '../components/ui/separator'
+import { Textarea } from '../components/ui/textarea'
 
 const ZERO_MACROS = {
   calories: 0,
@@ -30,6 +37,7 @@ export default function NutritionAIPage() {
   const [dailyMacros, setDailyMacros] = useState(ZERO_MACROS)
 
   const macroGoals = userProfile?.personalizedPlan?.macroGoals || DEFAULT_GOALS
+  const nutritionModeLabel = useMemo(() => (nutritionSource === 'ai' ? 'AI + Nutrition DB' : 'Nutrition DB'), [nutritionSource])
 
   const runNutritionAnalysis = async () => {
     const localResult = analyzeIngredientsText(ingredientText)
@@ -80,47 +88,111 @@ export default function NutritionAIPage() {
 
   return (
     <div className="app-shell">
-      <header className="page-header">
-        <button className="back-btn" onClick={() => navigate('/dashboard')}>← Dashboard</button>
-        <div>
-          <h2>AI Nutrition Assistant</h2>
-          <p>Accurate calories and macros, including unknown food estimation via AI.</p>
-        </div>
-        <div className="page-badge">{nutritionSource === 'ai' ? 'AI' : 'Local'} mode</div>
-      </header>
-
-      <section className="section-card">
-        <div className="section-head">
-          <h3>Analyze Meal</h3>
-          <span className="badge">{nutritionSource === 'ai' ? 'AI + DB' : 'Nutrition DB'}</span>
-        </div>
-
-        <div className="nutrition-input-row">
-          <textarea
-            className="nutrition-input"
-            rows={6}
-            value={ingredientText}
-            onChange={(e) => setIngredientText(e.target.value)}
-            placeholder="2 eggs\n100g salmon\n1 cup rice"
-          />
-          <div className="nutrition-actions">
-            <button className="primary-btn nutrition-btn" onClick={runNutritionAnalysis} disabled={nutritionLoading}>
-              {nutritionLoading ? 'Analyzing with AI...' : 'Analyze Meal'}
-            </button>
-            <button className="ghost-btn nutrition-btn" onClick={addMealToDailyProgress} disabled={!nutritionResult}>Add To Daily</button>
+      <Card className="page-hero-card">
+        <CardHeader className="page-hero-header">
+          <div className="page-hero-topline">
+            <Badge variant="secondary">Nutrition AI</Badge>
+            <Button variant="outline" size="sm" onClick={() => navigate('/dashboard')}>← Dashboard</Button>
           </div>
-        </div>
+          <CardTitle>AI Nutrition Assistant</CardTitle>
+          <CardDescription>
+            Accurate calories and macros, with AI estimation for ingredients the local database does not recognize.
+          </CardDescription>
+        </CardHeader>
+      </Card>
 
-        {nutritionError && <p className="auth-error nutrition-error">{nutritionError}</p>}
+      <div className="nutrition-page-grid">
+        <Card>
+          <CardHeader>
+            <div className="section-head">
+              <CardTitle>Analyze Meal</CardTitle>
+              <Badge variant="outline">{nutritionModeLabel}</Badge>
+            </div>
+            <CardDescription>
+              Enter your meal ingredients and let the assistant estimate calories, protein, carbs, fat, and fiber.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="nutrition-input-row">
+              <Textarea
+                value={ingredientText}
+                onChange={(e) => setIngredientText(e.target.value)}
+                placeholder="2 eggs\n100g salmon\n1 cup rice"
+                rows={8}
+              />
+              <div className="nutrition-actions">
+                <Button onClick={runNutritionAnalysis} disabled={nutritionLoading}>
+                  {nutritionLoading ? 'Analyzing with AI...' : 'Analyze Meal'}
+                </Button>
+                <Button variant="outline" onClick={addMealToDailyProgress} disabled={!nutritionResult}>
+                  Add To Daily
+                </Button>
+              </div>
+            </div>
 
-        {nutritionResult && (
-          <div className="nutrition-result">
+            {nutritionError && (
+              <Alert variant="destructive" style={{ marginTop: '1rem' }}>
+                <AlertTitle>Nutrition analysis issue</AlertTitle>
+                <AlertDescription>{nutritionError}</AlertDescription>
+              </Alert>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <div className="section-head">
+              <CardTitle>Daily Macro Progress</CardTitle>
+              <Badge variant="success">Targets</Badge>
+            </div>
+            <CardDescription>Track your calories and macros against your personalized daily targets.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="macro-progress-list">
+              {[
+                { key: 'calories', label: 'Calories', unit: 'kcal' },
+                { key: 'protein', label: 'Protein', unit: 'g' },
+                { key: 'carbs', label: 'Carbs', unit: 'g' },
+                { key: 'fat', label: 'Fat', unit: 'g' },
+              ].map((m) => {
+                const consumed = dailyMacros[m.key]
+                const target = macroGoals[m.key] || 1
+                const pct = Math.min((consumed / target) * 100, 100)
+                return (
+                  <div key={m.key} className="macro-progress-item">
+                    <div className="macro-progress-top">
+                      <p>{m.label}</p>
+                      <p>{consumed} / {target} {m.unit}</p>
+                    </div>
+                    <Progress value={pct} />
+                  </div>
+                )
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {nutritionResult && (
+        <Card className="nutrition-results-card">
+          <CardHeader>
+            <div className="section-head">
+              <CardTitle>Meal Breakdown</CardTitle>
+              <Badge variant="secondary">{nutritionSource === 'ai' ? 'AI Enhanced' : 'Local Estimate'}</Badge>
+            </div>
+            <CardDescription>
+              The result below combines ingredient parsing with AI correction for unknown foods.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
             <div className="nutrition-totals">
               <div className="nutrition-total-card"><span>Calories</span><strong>{nutritionResult.totals.calories} kcal</strong></div>
               <div className="nutrition-total-card"><span>Protein</span><strong>{nutritionResult.totals.protein} g</strong></div>
               <div className="nutrition-total-card"><span>Carbs</span><strong>{nutritionResult.totals.carbs} g</strong></div>
               <div className="nutrition-total-card"><span>Fat</span><strong>{nutritionResult.totals.fat} g</strong></div>
             </div>
+
+            <Separator />
 
             <div className="nutrition-list">
               {nutritionResult.entries.map((entry) => (
@@ -143,39 +215,9 @@ export default function NutritionAIPage() {
                 ))}
               </div>
             )}
-          </div>
-        )}
-      </section>
-
-      <section className="section-card">
-        <div className="section-head">
-          <h3>Daily Macro Progress</h3>
-          <span className="badge">Targets</span>
-        </div>
-        <div className="macro-progress-list">
-          {[
-            { key: 'calories', label: 'Calories', unit: 'kcal' },
-            { key: 'protein', label: 'Protein', unit: 'g' },
-            { key: 'carbs', label: 'Carbs', unit: 'g' },
-            { key: 'fat', label: 'Fat', unit: 'g' },
-          ].map((m) => {
-            const consumed = dailyMacros[m.key]
-            const target = macroGoals[m.key] || 1
-            const pct = Math.min((consumed / target) * 100, 100)
-            return (
-              <div key={m.key} className="macro-progress-item">
-                <div className="macro-progress-top">
-                  <p>{m.label}</p>
-                  <p>{consumed} / {target} {m.unit}</p>
-                </div>
-                <div className="macro-progress-track">
-                  <div className="macro-progress-fill" style={{ width: `${pct}%` }} />
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </section>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }
