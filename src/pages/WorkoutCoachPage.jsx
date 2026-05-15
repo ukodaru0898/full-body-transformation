@@ -1,6 +1,11 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { Badge } from '../components/ui/badge'
+import { Button } from '../components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
+import { Progress } from '../components/ui/progress'
+import { Separator } from '../components/ui/separator'
 
 const WORKOUT_MEDIA_LIBRARY = [
   {
@@ -62,7 +67,7 @@ function pickWorkoutMedia(rawText) {
 
 function getWorkoutExerciseCards(task) {
   const chunks = `${task.title || ''}. ${task.detail || ''}`
-    .split(/[.,;·]|\band\b/i)
+    .split(/[.,;·]|and/i)
     .map((x) => x.trim())
     .filter((x) => x.length > 2)
 
@@ -90,62 +95,82 @@ export default function WorkoutCoachPage() {
   const workoutDays = useMemo(() => gymTasks.map((task) => ({ ...task, exerciseCards: getWorkoutExerciseCards(task) })), [gymTasks])
   const [selectedWorkoutDay, setSelectedWorkoutDay] = useState(0)
   const selectedWorkout = workoutDays[selectedWorkoutDay] || null
+  const completionValue = workoutDays.length ? Math.round(((selectedWorkoutDay + 1) / workoutDays.length) * 100) : 0
 
   return (
     <div className="app-shell">
-      <header className="page-header">
-        <button className="back-btn" onClick={() => navigate('/dashboard')}>← Dashboard</button>
-        <div>
-          <h2>Interactive Workout Coach</h2>
-          <p>Daily workout pages with visual guidance and exercise instructions.</p>
-        </div>
-        <div className="page-badge">{workoutDays.length} training days</div>
-      </header>
+      <Card className="page-hero-card">
+        <CardHeader className="page-hero-header">
+          <div className="page-hero-topline">
+            <Badge variant="secondary">Workout Coach</Badge>
+            <Button variant="outline" size="sm" onClick={() => navigate('/dashboard')}>← Dashboard</Button>
+          </div>
+          <CardTitle>Interactive Workout Coach</CardTitle>
+          <CardDescription>Daily workout pages with visual guidance and exercise instructions.</CardDescription>
+        </CardHeader>
+      </Card>
 
       {!workoutDays.length && (
-        <section className="section-card">
-          <p className="nutrition-hint">No personalized gym schedule found yet. Complete onboarding again to generate your workout plan.</p>
-        </section>
+        <Card>
+          <CardContent>
+            <p className="nutrition-hint">No personalized gym schedule found yet. Complete onboarding again to generate your workout plan.</p>
+          </CardContent>
+        </Card>
       )}
 
       {workoutDays.length > 0 && (
-        <section className="section-card workout-coach-card">
-          <div className="workout-day-tabs">
-            {workoutDays.map((day, idx) => (
-              <button
-                key={`${day.time}-${idx}`}
-                type="button"
-                className={`workout-day-tab ${selectedWorkoutDay === idx ? 'active' : ''}`}
-                onClick={() => setSelectedWorkoutDay(idx)}
-              >
-                <span>{day.time}</span>
-                <strong>{day.title}</strong>
-              </button>
-            ))}
-          </div>
+        <Card className="workout-coach-card">
+          <CardHeader>
+            <div className="section-head">
+              <CardTitle>Training Days</CardTitle>
+              <Badge variant="success">{workoutDays.length} days</Badge>
+            </div>
+            <CardDescription>Tap a day to see the workout and the exercise visuals for that session.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="workout-selector-head">
+              <Progress value={completionValue} />
+              <p className="workout-selector-label">Selected day {selectedWorkoutDay + 1} of {workoutDays.length}</p>
+            </div>
 
-          {selectedWorkout && (
-            <>
-              <div className="workout-day-summary">
-                <h4>{selectedWorkout.title}</h4>
-                <p>{selectedWorkout.detail}</p>
-              </div>
+            <div className="workout-day-tabs">
+              {workoutDays.map((day, idx) => (
+                <button
+                  key={`${day.time}-${idx}`}
+                  type="button"
+                  className={`workout-day-tab ${selectedWorkoutDay === idx ? 'active' : ''}`}
+                  onClick={() => setSelectedWorkoutDay(idx)}
+                >
+                  <span>{day.time}</span>
+                  <strong>{day.title}</strong>
+                </button>
+              ))}
+            </div>
 
-              <div className="workout-exercise-grid">
-                {selectedWorkout.exerciseCards.map((exercise, idx) => (
-                  <article key={`${exercise.name}-${idx}`} className="workout-exercise-card">
-                    <img src={exercise.image} alt={exercise.name} loading="lazy" />
-                    <div className="workout-exercise-copy">
-                      <p className="exercise-name">{exercise.name}</p>
-                      <p className="exercise-focus">From your plan: {exercise.focus}</p>
-                      <p className="exercise-howto">How to do it: {exercise.howTo}</p>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            </>
-          )}
-        </section>
+            {selectedWorkout && (
+              <>
+                <Separator />
+                <div className="workout-day-summary">
+                  <h4>{selectedWorkout.title}</h4>
+                  <p>{selectedWorkout.detail}</p>
+                </div>
+
+                <div className="workout-exercise-grid">
+                  {selectedWorkout.exerciseCards.map((exercise, idx) => (
+                    <article key={`${exercise.name}-${idx}`} className="workout-exercise-card">
+                      <img src={exercise.image} alt={exercise.name} loading="lazy" />
+                      <div className="workout-exercise-copy">
+                        <p className="exercise-name">{exercise.name}</p>
+                        <p className="exercise-focus">From your plan: {exercise.focus}</p>
+                        <p className="exercise-howto">How to do it: {exercise.howTo}</p>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
       )}
     </div>
   )

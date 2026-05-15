@@ -2,6 +2,11 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { generateShoppingRecommendations } from '../utils/aiPlanner'
+import { Alert, AlertDescription, AlertTitle } from '../components/ui/alert'
+import { Badge } from '../components/ui/badge'
+import { Button } from '../components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
+import { Separator } from '../components/ui/separator'
 
 const BUY_LINK_PROVIDERS = [
   { label: 'Amazon US', buildUrl: (term) => `https://www.amazon.com/s?k=${encodeURIComponent(term)}` },
@@ -125,52 +130,73 @@ export default function ShopPage() {
 
   return (
     <div className="app-shell">
-      <header className="page-header">
-        <button className="back-btn" onClick={() => navigate('/dashboard')}>← Dashboard</button>
-        <div>
-          <h2>Personalized Shop Recommendations</h2>
-          <p>US-focused product suggestions based on your goals, skin type, and hair type.</p>
-        </div>
-        <button className="ghost-btn-sm" onClick={refreshShopRecommendations} disabled={shopLoading}>
-          {shopLoading ? 'Refreshing...' : 'Refresh with AI'}
-        </button>
-      </header>
-
-      <section className="section-card shop-card">
-        {shopError && <p className="auth-error nutrition-error">{shopError}</p>}
-        {shopLoading && shopRecommendations.items.length === 0 && (
-          <p className="nutrition-hint">Generating personalized products...</p>
-        )}
-
-        {shopRecommendations.items.length > 0 && (
-          <div className="shop-grid">
-            {shopRecommendations.items.map((item, idx) => (
-              <article className="shop-item-card" key={`${item.name}-${idx}`}>
-                <div className="shop-item-head">
-                  <span className="shop-item-category">{item.category}</span>
-                  <span className={`shop-priority ${item.priority || 'medium'}`}>{item.priority || 'medium'}</span>
-                </div>
-                <h4>{item.name}</h4>
-                <p><strong>Why:</strong> {item.why}</p>
-                <p><strong>How to use:</strong> {item.usage}</p>
-                <div className="shop-links">
-                  {buildShoppingLinks(item.buySearchTerm || item.name).map((link) => (
-                    <a key={`${item.name}-${link.label}`} href={link.url} target="_blank" rel="noreferrer" className="shop-link-btn">
-                      Buy on {link.label}
-                    </a>
-                  ))}
-                </div>
-              </article>
-            ))}
+      <Card className="page-hero-card">
+        <CardHeader className="page-hero-header">
+          <div className="page-hero-topline">
+            <Badge variant="secondary">Personalized Shop</Badge>
+            <Button variant="outline" size="sm" onClick={() => navigate('/dashboard')}>← Dashboard</Button>
           </div>
-        )}
+          <CardTitle>Personalized Shop Recommendations</CardTitle>
+          <CardDescription>US-focused product suggestions based on your goals, skin type, and hair type.</CardDescription>
+        </CardHeader>
+      </Card>
 
-        {shopRecommendations.notes?.length > 0 && (
-          <div className="shop-notes">
-            {shopRecommendations.notes.map((note, idx) => <p key={`${note}-${idx}`}>• {note}</p>)}
+      <Card>
+        <CardHeader>
+          <div className="section-head">
+            <CardTitle>Product List</CardTitle>
+            <Button variant="outline" size="sm" onClick={refreshShopRecommendations} disabled={shopLoading}>
+              {shopLoading ? 'Refreshing...' : 'Refresh with AI'}
+            </Button>
           </div>
-        )}
-      </section>
+          <CardDescription>
+            Compare products from US stores and use the short notes to understand why each one is recommended.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {shopError && (
+            <Alert variant="destructive" style={{ marginBottom: '1rem' }}>
+              <AlertTitle>Shop recommendations issue</AlertTitle>
+              <AlertDescription>{shopError}</AlertDescription>
+            </Alert>
+          )}
+          {shopLoading && shopRecommendations.items.length === 0 && (
+            <p className="nutrition-hint">Generating personalized products...</p>
+          )}
+
+          {shopRecommendations.items.length > 0 && (
+            <div className="shop-grid">
+              {shopRecommendations.items.map((item, idx) => (
+                <article className="shop-item-card" key={`${item.name}-${idx}`}>
+                  <div className="shop-item-head">
+                    <span className="shop-item-category">{item.category}</span>
+                    <span className={`shop-priority ${item.priority || 'medium'}`}>{item.priority || 'medium'}</span>
+                  </div>
+                  <h4>{item.name}</h4>
+                  <p><strong>Why:</strong> {item.why}</p>
+                  <p><strong>How to use:</strong> {item.usage}</p>
+                  <div className="shop-links">
+                    {buildShoppingLinks(item.buySearchTerm || item.name).map((link) => (
+                      <a key={`${item.name}-${link.label}`} href={link.url} target="_blank" rel="noreferrer" className="shop-link-btn">
+                        Buy on {link.label}
+                      </a>
+                    ))}
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+
+          {shopRecommendations.notes?.length > 0 && (
+            <>
+              <Separator />
+              <div className="shop-notes">
+                {shopRecommendations.notes.map((note, idx) => <p key={`${note}-${idx}`}>• {note}</p>)}
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 }
