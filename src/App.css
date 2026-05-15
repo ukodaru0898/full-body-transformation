@@ -258,7 +258,55 @@
 .nutrition-list { display: grid; gap: 8px; }
 .nutrition-item { border: 1px solid #e6edf9; border-radius: 10px; padding: 9px 12px; background: #fff; }
 .nutrition-item p { margin: 2px 0; font-size: 0.87rem; color: #334a6e; }
+.nutrition-confidence { font-size: 0.78rem !important; color: #5f7398 !important; text-transform: uppercase; }
 .nutrition-unknown { margin: 10px 0 0; font-size: 0.84rem; color: #9a5f20; background: #fff5e8; border-radius: 8px; padding: 8px 10px; }
+.nutrition-notes { margin-top: 10px; background: #f4f8ff; border: 1px solid #dbe8fa; border-radius: 10px; padding: 8px 10px; }
+.nutrition-notes p { margin: 5px 0; font-size: 0.82rem; color: #4f6386; }
+
+/* ── INTERACTIVE WORKOUT COACH ── */
+.workout-coach-card { border-left: 3px solid #ff6b6b; }
+.workout-day-tabs { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-bottom: 14px; }
+.workout-day-tab {
+  background: #f8fbff; border: 1px solid #d9e6fa; border-radius: 12px; padding: 10px 12px;
+  text-align: left; cursor: pointer; color: #2e4366; transition: all 0.2s;
+}
+.workout-day-tab span { display: block; font-size: 0.75rem; color: #6a7fa4; margin-bottom: 2px; text-transform: uppercase; }
+.workout-day-tab strong { font-size: 0.87rem; }
+.workout-day-tab.active,
+.workout-day-tab:hover { border-color: #ff8a8a; background: #fff2f2; transform: translateY(-1px); }
+
+.workout-day-summary { background: #fff5f5; border: 1px solid #ffd6d6; border-radius: 12px; padding: 10px 12px; margin-bottom: 12px; }
+.workout-day-summary h4 { margin: 0 0 6px; color: #7f2f2f; }
+.workout-day-summary p { margin: 0; font-size: 0.88rem; color: #5d4545; }
+
+.workout-exercise-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+.workout-exercise-card { border: 1px solid #e5ecf9; border-radius: 14px; overflow: hidden; background: #fff; }
+.workout-exercise-card img { width: 100%; height: 160px; object-fit: cover; display: block; }
+.workout-exercise-copy { padding: 10px 12px 12px; }
+.exercise-name { margin: 0 0 5px; font-weight: 700; color: #1d2f4d; }
+.exercise-focus { margin: 0 0 6px; font-size: 0.8rem; color: #5f7398; }
+.exercise-howto { margin: 0; font-size: 0.84rem; color: #334a6e; line-height: 1.45; }
+
+/* ── SHOPPING RECOMMENDATIONS ── */
+.shop-card { border-left: 3px solid #23b6c9; }
+.shop-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.shop-item-card { border: 1px solid #deecf8; border-radius: 14px; padding: 12px; background: #fbfdff; }
+.shop-item-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; gap: 8px; }
+.shop-item-category { text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.07em; color: #4e658a; font-weight: 700; }
+.shop-priority { border-radius: 999px; padding: 3px 8px; font-size: 0.72rem; text-transform: uppercase; font-weight: 700; }
+.shop-priority.high { color: #8c1f1f; background: #ffe3e3; }
+.shop-priority.medium { color: #7a5a18; background: #fff2d5; }
+.shop-priority.low { color: #2e5f2e; background: #e3f7e3; }
+.shop-item-card h4 { margin: 0 0 8px; color: #20365a; font-size: 1rem; }
+.shop-item-card p { margin: 6px 0; color: #344b6f; font-size: 0.86rem; line-height: 1.45; }
+.shop-links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.shop-link-btn {
+  background: #eef5ff; border: 1px solid #cdddf7; border-radius: 8px; padding: 6px 9px;
+  color: #2b4774; text-decoration: none; font-size: 0.79rem; font-weight: 600;
+}
+.shop-link-btn:hover { background: #dfeeff; }
+.shop-notes { margin-top: 12px; border-top: 1px dashed #d3e3f7; padding-top: 10px; }
+.shop-notes p { margin: 5px 0; font-size: 0.82rem; color: #5a6f94; }
 
 /* ── DAILY MACRO PROGRESS ── */
 .macro-section { margin-top: 16px; border-top: 1px solid #e8eef8; padding-top: 14px; }

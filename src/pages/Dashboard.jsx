@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { getToken } from 'firebase/messaging'
 import { messaging } from '../firebase'
 import { analyzeIngredientsText } from '../utils/nutritionAssistant'
+import { analyzeMealWithAI, generateShoppingRecommendations } from '../utils/aiPlanner'
 import { jsPDF } from 'jspdf'
 import { Circle, MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet'
 import L from 'leaflet'
@@ -56,6 +57,111 @@ const ZERO_MACROS = {
   protein: 0,
   carbs: 0,
   fat: 0,
+}
+
+const WORKOUT_MEDIA_LIBRARY = [
+  {
+    key: ['bench press', 'chest press'],
+    title: 'Bench Press',
+    image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?auto=format&fit=crop&w=900&q=80',
+    howTo: 'Lie flat, keep feet grounded, lower bar to mid-chest, and press up while bracing your core.',
+  },
+  {
+    key: ['squat', 'leg press'],
+    title: 'Squat',
+    image: 'https://images.unsplash.com/photo-1434682881908-b43d0467b798?auto=format&fit=crop&w=900&q=80',
+    howTo: 'Keep chest up, push hips back, lower until thighs are parallel, and drive through your heels.',
+  },
+  {
+    key: ['deadlift', 'romanian deadlift'],
+    title: 'Deadlift',
+    image: 'https://images.unsplash.com/photo-1599058917765-a780eda07a3e?auto=format&fit=crop&w=900&q=80',
+    howTo: 'Hinge at hips, keep spine neutral, pull bar close to legs, and lock out by squeezing glutes.',
+  },
+  {
+    key: ['pull up', 'lat pull-down', 'pulldown'],
+    title: 'Pull-Up / Lat Pull-Down',
+    image: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=900&q=80',
+    howTo: 'Lead with elbows, pull chest toward bar, and lower under control without swinging.',
+  },
+  {
+    key: ['overhead press', 'shoulder press'],
+    title: 'Overhead Press',
+    image: 'https://images.unsplash.com/photo-1534368786749-b63e0eaf8f70?auto=format&fit=crop&w=900&q=80',
+    howTo: 'Start at shoulder level, press straight up, and keep ribs down to avoid over-arching.',
+  },
+  {
+    key: ['row', 'seated cable row'],
+    title: 'Row',
+    image: 'https://images.unsplash.com/photo-1549476464-37392f717541?auto=format&fit=crop&w=900&q=80',
+    howTo: 'Pull handle toward lower ribs, keep shoulders packed, and squeeze back at the end.',
+  },
+  {
+    key: ['plank', 'core', 'crunch'],
+    title: 'Core Stability',
+    image: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=900&q=80',
+    howTo: 'Brace abs, keep body in a straight line, and focus on controlled breathing.',
+  },
+]
+
+const WORKOUT_FALLBACK_MEDIA = {
+  title: 'Functional Training',
+  image: 'https://images.unsplash.com/photo-1593476123561-9516f2097158?auto=format&fit=crop&w=900&q=80',
+  howTo: 'Use controlled reps, full range of motion, and progressive overload week to week.',
+}
+
+const BUY_LINK_PROVIDERS = [
+  { label: 'Amazon', buildUrl: (term) => `https://www.amazon.in/s?k=${encodeURIComponent(term)}` },
+  { label: 'Flipkart', buildUrl: (term) => `https://www.flipkart.com/search?q=${encodeURIComponent(term)}` },
+  { label: 'Decathlon', buildUrl: (term) => `https://www.decathlon.in/search?query=${encodeURIComponent(term)}` },
+]
+
+function pickWorkoutMedia(rawText) {
+  const text = (rawText || '').toLowerCase()
+  if (!text) return WORKOUT_FALLBACK_MEDIA
+  const match = WORKOUT_MEDIA_LIBRARY.find((item) => item.key.some((k) => text.includes(k)))
+  return match || WORKOUT_FALLBACK_MEDIA
+}
+
+function getWorkoutExerciseCards(task) {
+  const chunks = `${task.title || ''}. ${task.detail || ''}`
+    .split(/[.,;·]|\band\b/i)
+    .map((x) => x.trim())
+    .filter((x) => x.length > 2)
+
+  const cards = []
+  const seen = new Set()
+
+  chunks.forEach((chunk) => {
+    const media = pickWorkoutMedia(chunk)
+    if (seen.has(media.title)) return
+    seen.add(media.title)
+    cards.push({
+      name: media.title,
+      image: media.image,
+      howTo: media.howTo,
+      focus: chunk,
+    })
+  })
+
+  if (!cards.length) {
+    const media = pickWorkoutMedia(task.title)
+    cards.push({
+      name: media.title,
+      image: media.image,
+      howTo: media.howTo,
+      focus: task.title,
+    })
+  }
+
+  return cards.slice(0, 6)
+}
+
+function buildShoppingLinks(searchTerm) {
+  return BUY_LINK_PROVIDERS.map((provider) => ({
+    label: provider.label,
+    url: provider.buildUrl(searchTerm),
+  }))
 }
 
 function to24Hour(timeLabel) {
@@ -209,6 +315,9 @@ export default function Dashboard() {
   const [ingredientText, setIngredientText] = useState('2 eggs\n100g paneer\n1 cup rice\n1 banana')
   const [nutritionResult, setNutritionResult] = useState(null)
   const [nutritionError, setNutritionError] = useState('')
+  const [nutritionLoading, setNutritionLoading] = useState(false)
+  const [nutritionSource, setNutritionSource] = useState('local')
+  const [nutritionNotes, setNutritionNotes] = useState([])
   const [remindersEnabled, setRemindersEnabled] = useState(() => (
     typeof window !== 'undefined' && localStorage.getItem('fitness-reminders-enabled') === 'true'
   ))
@@ -242,6 +351,10 @@ export default function Dashboard() {
       return DEFAULT_MACRO_GOALS
     }
   })
+  const [selectedWorkoutDay, setSelectedWorkoutDay] = useState(0)
+  const [shopRecommendations, setShopRecommendations] = useState({ items: [], notes: [] })
+  const [shopLoading, setShopLoading] = useState(false)
+  const [shopError, setShopError] = useState('')
 
   const mapCenter = mapFocus || userCoords || [17.385, 78.4867]
   const nearbySpots = useMemo(() => {
@@ -261,6 +374,52 @@ export default function Dashboard() {
     ]
   }, [userCoords])
   const displayedSpots = mapResults.length ? mapResults : nearbySpots
+
+  const gymTasks = plan?.schedulePages?.gym?.tasks || []
+  const workoutDays = useMemo(() => {
+    return gymTasks.map((task) => ({
+      ...task,
+      exerciseCards: getWorkoutExerciseCards(task),
+    }))
+  }, [gymTasks])
+
+  const fallbackShopItems = useMemo(() => {
+    const goalText = onboardingAnswers?.fitnessGoal || 'overall fitness'
+    return [
+      {
+        category: 'supplement',
+        name: 'Whey Protein Isolate',
+        why: `Helps support daily protein targets for ${goalText.toLowerCase()}.`,
+        usage: 'Use 1 scoop post-workout or to complete your daily protein intake.',
+        buySearchTerm: 'best whey isolate 1kg india',
+        priority: 'high',
+      },
+      {
+        category: 'gym',
+        name: 'Adjustable Dumbbells',
+        why: 'Makes progressive overload easy for home and travel training.',
+        usage: 'Use 3-4 sessions per week for presses, rows, squats, and accessory lifts.',
+        buySearchTerm: 'adjustable dumbbell set home gym india',
+        priority: 'high',
+      },
+      {
+        category: 'skin',
+        name: 'Broad Spectrum SPF 50 Sunscreen',
+        why: `Protects ${onboardingAnswers?.skinType || 'all skin'} skin from UV damage and pigmentation.`,
+        usage: 'Apply every morning and reapply when outdoors.',
+        buySearchTerm: 'spf 50 sunscreen non comedogenic india',
+        priority: 'high',
+      },
+      {
+        category: 'hair',
+        name: 'Sulfate-Free Shampoo',
+        why: `Better scalp support for ${onboardingAnswers?.hairType || 'your hair type'} with less dryness.`,
+        usage: 'Use 2-3 times per week, focusing on scalp cleanse.',
+        buySearchTerm: 'sulfate free shampoo dermat recommended india',
+        priority: 'medium',
+      },
+    ]
+  }, [onboardingAnswers])
 
   const suggestedReminders = useMemo(() => {
     return activeSchedule
@@ -295,6 +454,61 @@ export default function Dashboard() {
       setMacroGoals(planMacroGoals)
     }
   }, [planMacroGoals])
+
+  useEffect(() => {
+    if (!workoutDays.length) {
+      setSelectedWorkoutDay(0)
+      return
+    }
+    if (selectedWorkoutDay >= workoutDays.length) {
+      setSelectedWorkoutDay(0)
+    }
+  }, [selectedWorkoutDay, workoutDays])
+
+  useEffect(() => {
+    const uid = currentUser?.uid
+    if (!uid || !onboardingAnswers) return
+
+    const cacheKey = `fitness-shop-recommendations-${uid}`
+    try {
+      const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null')
+      if (cached?.items?.length) {
+        setShopRecommendations(cached)
+        return
+      }
+    } catch {
+      // ignore cache parse failure
+    }
+
+    let ignore = false
+    const loadRecommendations = async () => {
+      setShopLoading(true)
+      setShopError('')
+      try {
+        const aiRecommendations = await generateShoppingRecommendations({
+          onboardingAnswers,
+          personalizedPlan: plan,
+        })
+        if (ignore) return
+        const normalized = {
+          items: Array.isArray(aiRecommendations?.items) ? aiRecommendations.items : fallbackShopItems,
+          notes: Array.isArray(aiRecommendations?.notes) ? aiRecommendations.notes : [],
+        }
+        setShopRecommendations(normalized)
+        localStorage.setItem(cacheKey, JSON.stringify(normalized))
+      } catch {
+        if (ignore) return
+        const fallback = { items: fallbackShopItems, notes: ['Using fallback product list. AI recommendations were unavailable.'] }
+        setShopRecommendations(fallback)
+        setShopError('Could not load AI product recommendations right now. Showing a smart fallback list.')
+      } finally {
+        if (!ignore) setShopLoading(false)
+      }
+    }
+
+    loadRecommendations()
+    return () => { ignore = true }
+  }, [currentUser?.uid, onboardingAnswers, plan, fallbackShopItems])
 
   const searchMapPlaces = async (term, center = mapCenter) => {
     const query = term.trim()
@@ -508,15 +722,65 @@ export default function Dashboard() {
     suggestedReminders.forEach((item) => addSuggestedReminder(item.time, item.task))
   }
 
-  const runNutritionAnalysis = () => {
-    const result = analyzeIngredientsText(ingredientText)
-    if (result.error) {
-      setNutritionError(result.error)
+  const runNutritionAnalysis = async () => {
+    const localResult = analyzeIngredientsText(ingredientText)
+    if (localResult.error) {
+      setNutritionError(localResult.error)
       setNutritionResult(null)
       return
     }
+
     setNutritionError('')
-    setNutritionResult(result)
+    setNutritionLoading(true)
+    try {
+      const aiResult = await analyzeMealWithAI({
+        ingredientText,
+        localResult,
+        profile: {
+          onboarding: onboardingAnswers,
+          health,
+        },
+      })
+
+      const normalized = {
+        entries: Array.isArray(aiResult?.entries) && aiResult.entries.length ? aiResult.entries : localResult.entries,
+        unknown: Array.isArray(aiResult?.unknown) ? aiResult.unknown : localResult.unknown,
+        totals: aiResult?.totals || localResult.totals,
+      }
+
+      setNutritionResult(normalized)
+      setNutritionSource('ai')
+      setNutritionNotes(Array.isArray(aiResult?.notes) ? aiResult.notes : [])
+    } catch {
+      setNutritionResult(localResult)
+      setNutritionSource('local')
+      setNutritionNotes(['AI meal analysis was unavailable, so local nutrition estimates are shown.'])
+      setNutritionError('AI is temporarily unavailable. Showing local nutrition estimate.')
+    } finally {
+      setNutritionLoading(false)
+    }
+  }
+
+  const refreshShopRecommendations = async () => {
+    if (!onboardingAnswers || !currentUser?.uid) return
+    setShopLoading(true)
+    setShopError('')
+    try {
+      const aiRecommendations = await generateShoppingRecommendations({
+        onboardingAnswers,
+        personalizedPlan: plan,
+      })
+      const normalized = {
+        items: Array.isArray(aiRecommendations?.items) ? aiRecommendations.items : fallbackShopItems,
+        notes: Array.isArray(aiRecommendations?.notes) ? aiRecommendations.notes : [],
+      }
+      setShopRecommendations(normalized)
+      localStorage.setItem(`fitness-shop-recommendations-${currentUser.uid}`, JSON.stringify(normalized))
+    } catch {
+      setShopError('Could not refresh recommendations right now. Please try again.')
+    } finally {
+      setShopLoading(false)
+    }
   }
 
   const exportMealReportPDF = () => {
@@ -620,6 +884,7 @@ export default function Dashboard() {
   }
 
   const firstName = currentUser?.displayName?.split(' ')[0] || userProfile?.name?.split(' ')[0] || 'Champion'
+  const selectedWorkout = workoutDays[selectedWorkoutDay] || null
 
   return (
     <div className="app-shell">
@@ -786,6 +1051,102 @@ export default function Dashboard() {
         </section>
       )}
 
+      {/* ── INTERACTIVE WORKOUT COACH ── */}
+      {workoutDays.length > 0 && (
+        <section className="section-card workout-coach-card">
+          <div className="section-head">
+            <h3>🏋️ Interactive Daily Workout Coach</h3>
+            <span className="badge">{workoutDays.length} training days</span>
+          </div>
+
+          <div className="workout-day-tabs">
+            {workoutDays.map((day, idx) => (
+              <button
+                key={`${day.time}-${idx}`}
+                type="button"
+                className={`workout-day-tab ${selectedWorkoutDay === idx ? 'active' : ''}`}
+                onClick={() => setSelectedWorkoutDay(idx)}
+              >
+                <span>{day.time}</span>
+                <strong>{day.title}</strong>
+              </button>
+            ))}
+          </div>
+
+          {selectedWorkout && (
+            <>
+              <div className="workout-day-summary">
+                <h4>{selectedWorkout.title}</h4>
+                <p>{selectedWorkout.detail}</p>
+              </div>
+
+              <div className="workout-exercise-grid">
+                {selectedWorkout.exerciseCards.map((exercise, idx) => (
+                  <article key={`${exercise.name}-${idx}`} className="workout-exercise-card">
+                    <img src={exercise.image} alt={exercise.name} loading="lazy" />
+                    <div className="workout-exercise-copy">
+                      <p className="exercise-name">{exercise.name}</p>
+                      <p className="exercise-focus">From your plan: {exercise.focus}</p>
+                      <p className="exercise-howto">How to do it: {exercise.howTo}</p>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </>
+          )}
+        </section>
+      )}
+
+      {/* ── PERSONALIZED SHOPPING RECOMMENDATIONS ── */}
+      {onboardingAnswers && (
+        <section className="section-card shop-card">
+          <div className="section-head">
+            <h3>🛍️ Personalized Product Recommendations</h3>
+            <button className="ghost-btn-sm" onClick={refreshShopRecommendations} disabled={shopLoading}>
+              {shopLoading ? 'Refreshing...' : 'Refresh with AI'}
+            </button>
+          </div>
+          <p className="nutrition-hint">
+            These are tailored to your goals, skin type, and hair type. Use the buy links to compare prices and reviews.
+          </p>
+
+          {shopError && <p className="auth-error nutrition-error">{shopError}</p>}
+
+          {shopLoading && shopRecommendations.items.length === 0 && (
+            <p className="nutrition-hint">Generating personalized products...</p>
+          )}
+
+          {shopRecommendations.items.length > 0 && (
+            <div className="shop-grid">
+              {shopRecommendations.items.map((item, idx) => (
+                <article className="shop-item-card" key={`${item.name}-${idx}`}>
+                  <div className="shop-item-head">
+                    <span className="shop-item-category">{item.category}</span>
+                    <span className={`shop-priority ${item.priority || 'medium'}`}>{item.priority || 'medium'}</span>
+                  </div>
+                  <h4>{item.name}</h4>
+                  <p><strong>Why:</strong> {item.why}</p>
+                  <p><strong>How to use:</strong> {item.usage}</p>
+                  <div className="shop-links">
+                    {buildShoppingLinks(item.buySearchTerm || item.name).map((link) => (
+                      <a key={`${item.name}-${link.label}`} href={link.url} target="_blank" rel="noreferrer" className="shop-link-btn">
+                        Buy on {link.label}
+                      </a>
+                    ))}
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+
+          {shopRecommendations.notes?.length > 0 && (
+            <div className="shop-notes">
+              {shopRecommendations.notes.map((note, idx) => <p key={`${note}-${idx}`}>• {note}</p>)}
+            </div>
+          )}
+        </section>
+      )}
+
       {/* ── APPLE WATCH INFO ── */}
       <section className="section-card watch-card">
         <div className="watch-left">
@@ -916,7 +1277,7 @@ export default function Dashboard() {
       <section className="section-card">
         <div className="section-head">
           <h3>🤖 AI Nutrition Assistant</h3>
-          <span className="badge">Ingredient Analyzer</span>
+          <span className="badge">{nutritionSource === 'ai' ? 'AI + Nutrition DB' : 'Ingredient Analyzer'}</span>
         </div>
         <p className="nutrition-hint">Enter ingredients with quantity (e.g. 2 eggs, 100g paneer, 1 cup rice). The assistant estimates calories, protein, carbs, fat, and fiber.</p>
 
@@ -929,7 +1290,9 @@ export default function Dashboard() {
             placeholder="2 eggs\n100g chicken\n1 cup rice"
           />
           <div className="nutrition-actions">
-            <button className="primary-btn nutrition-btn" onClick={runNutritionAnalysis}>Analyze Meal</button>
+            <button className="primary-btn nutrition-btn" onClick={runNutritionAnalysis} disabled={nutritionLoading}>
+              {nutritionLoading ? 'Analyzing with AI...' : 'Analyze Meal'}
+            </button>
             <button className="ghost-btn nutrition-btn" onClick={addMealToDailyProgress} disabled={!nutritionResult}>Add To Daily</button>
             <button className="ghost-btn nutrition-btn" onClick={exportMealReportPDF} disabled={!nutritionResult}>Export PDF</button>
           </div>
@@ -951,12 +1314,21 @@ export default function Dashboard() {
                 <div key={`${entry.input}-${entry.matched}`} className="nutrition-item">
                   <p><strong>{entry.matched}</strong> ({entry.grams} g)</p>
                   <p>{entry.calories} kcal · P {entry.protein} g · C {entry.carbs} g · F {entry.fat} g</p>
+                  {entry.confidence && <p className="nutrition-confidence">Confidence: {entry.confidence}</p>}
                 </div>
               ))}
             </div>
 
             {nutritionResult.unknown.length > 0 && (
               <p className="nutrition-unknown">Not recognized: {nutritionResult.unknown.join(', ')}</p>
+            )}
+
+            {nutritionNotes.length > 0 && (
+              <div className="nutrition-notes">
+                {nutritionNotes.map((note, idx) => (
+                  <p key={`${note}-${idx}`}>• {note}</p>
+                ))}
+              </div>
             )}
           </div>
         )}
