@@ -47,6 +47,7 @@ export function AuthProvider({ children }) {
       email,
       createdAt: new Date().toISOString(),
       completedTasks: {},
+      onboardingCompleted: false,
       healthData: {
         steps: 0,
         calories: 0,
@@ -104,6 +105,7 @@ export function AuthProvider({ children }) {
         email: user.email,
         createdAt: new Date().toISOString(),
         completedTasks: {},
+        onboardingCompleted: false,
         healthData: {
           steps: 0, calories: 0, heartRate: 72,
           sleep: 7.5, water: 0, weight: 65, workoutMinutes: 0,
@@ -113,6 +115,18 @@ export function AuthProvider({ children }) {
       setUserProfile(profile)
     }
     if (analytics) logEvent(analytics, 'login', { method: 'google' })
+  }
+
+  async function saveOnboardingData(answers, plan) {
+    assertFirebaseReady()
+    if (!currentUser) return
+    const update = {
+      onboardingCompleted: true,
+      onboardingAnswers: answers,
+      personalizedPlan: plan,
+    }
+    await updateDoc(doc(db, 'users', currentUser.uid), update)
+    setUserProfile((prev) => ({ ...prev, ...update }))
   }
 
   async function forgotPassword(email) {
@@ -176,7 +190,7 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider
-      value={{ currentUser, userProfile, authError, clearAuthError, register, login, loginWithGoogle, forgotPassword, uploadProfilePhoto, logout, saveCompletedTasks, saveHealthData }}
+      value={{ currentUser, userProfile, authError, clearAuthError, register, login, loginWithGoogle, forgotPassword, uploadProfilePhoto, logout, saveCompletedTasks, saveHealthData, saveOnboardingData }}
     >
       {!loading && children}
     </AuthContext.Provider>

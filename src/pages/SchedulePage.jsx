@@ -93,7 +93,9 @@ export default function SchedulePage() {
   const navigate = useNavigate()
   const { userProfile, saveCompletedTasks } = useAuth()
 
-  const page = PAGES[pageId] || PAGES.face
+  // Use AI-personalized schedulePages if available, fall back to hardcoded PAGES
+  const schedulePages = userProfile?.personalizedPlan?.schedulePages || null
+  const page = (schedulePages?.[pageId]) || PAGES[pageId] || PAGES.face
   const completed = userProfile?.completedTasks || {}
 
   const toggle = async (key) => {
@@ -103,7 +105,10 @@ export default function SchedulePage() {
 
   const doneCount = page.tasks.filter((_, i) => completed[`${pageId}-${i}`]).length
 
-  const navPages = Object.entries(PAGES)
+  // Build nav from personalized plan if available, otherwise from hardcoded PAGES
+  const navPages = userProfile?.personalizedPlan?.navPages
+    ? userProfile.personalizedPlan.navPages.map((p) => [p.id, { title: p.label, accentColor: p.color }])
+    : Object.entries(PAGES)
 
   return (
     <div className="app-shell">

@@ -184,8 +184,16 @@ export default function Dashboard() {
     steps: 0, calories: 0, heartRate: 72, sleep: 7.5, water: 0, weight: 65, workoutMinutes: 0,
   }
 
+  // Use AI-personalized plan if available, fall back to defaults
+  const plan = userProfile?.personalizedPlan || null
+  const activeSchedule = plan?.dailySchedule || TODAY_SCHEDULE
+  const activeNavPages = plan?.navPages || NAV_PAGES
+  const planMacroGoals = plan?.macroGoals || null
+  const planTips = plan?.tips || null
+  const onboardingAnswers = userProfile?.onboardingAnswers || null
+
   const completed = userProfile?.completedTasks || {}
-  const doneToday = TODAY_SCHEDULE.filter((_, i) => completed[`today-${i}`]).length
+  const doneToday = activeSchedule.filter((_, i) => completed[`today-${i}`]).length
   const [logField, setLogField] = useState(null)
   const [logValue, setLogValue] = useState('')
   const [syncMsg, setSyncMsg] = useState('')
@@ -255,11 +263,11 @@ export default function Dashboard() {
   const displayedSpots = mapResults.length ? mapResults : nearbySpots
 
   const suggestedReminders = useMemo(() => {
-    return TODAY_SCHEDULE
+    return activeSchedule
       .filter((item) => ['food', 'gym', 'wellness'].includes(item.category))
       .map((item) => ({ time: to24Hour(item.time), task: item.task }))
       .filter((suggestion) => !reminders.some((r) => r.time === suggestion.time && r.task === suggestion.task))
-  }, [reminders])
+  }, [reminders, activeSchedule])
 
   useEffect(() => {
     if (!('geolocation' in navigator)) {
@@ -278,6 +286,15 @@ export default function Dashboard() {
       { enableHighAccuracy: true, timeout: 8000 }
     )
   }, [])
+
+  // Sync AI-generated macro goals when the plan loads (only if no localStorage override exists)
+  useEffect(() => {
+    if (!planMacroGoals) return
+    const stored = typeof window !== 'undefined' ? localStorage.getItem('daily-macro-goals') : null
+    if (!stored) {
+      setMacroGoals(planMacroGoals)
+    }
+  }, [planMacroGoals])
 
   const searchMapPlaces = async (term, center = mapCenter) => {
     const query = term.trim()
@@ -639,7 +656,7 @@ export default function Dashboard() {
 
       {/* ── NAV ── */}
       <nav className="dash-nav">
-        {NAV_PAGES.map((p) => (
+        {activeNavPages.map((p) => (
           <button
             key={p.id}
             className="slide-pill"
@@ -712,6 +729,62 @@ export default function Dashboard() {
           </div>
         )}
       </section>
+
+      {/* ── AI PERSONALIZED PLAN INFO ── */}
+      {planTips && (
+        <section className="section-card ai-plan-card">
+          <div className="section-head">
+            <h3>🤖 Your AI-Personalized Plan</h3>
+            <span className="badge ai-plan-badge">
+              {onboardingAnswers?.fitnessGoal?.split(' ').slice(0, 3).join(' ') || 'Personalized'}
+            </span>
+          </div>
+          <div className="ai-tips-grid">
+            {planTips.workoutSummary && (
+              <div className="ai-tip-card gym">
+                <span className="ai-tip-icon">🏋️</span>
+                <div>
+                  <p className="ai-tip-label">Workout</p>
+                  <p className="ai-tip-text">{planTips.workoutSummary}</p>
+                </div>
+              </div>
+            )}
+            {planTips.nutritionSummary && (
+              <div className="ai-tip-card food">
+                <span className="ai-tip-icon">🥗</span>
+                <div>
+                  <p className="ai-tip-label">Nutrition</p>
+                  <p className="ai-tip-text">{planTips.nutritionSummary}</p>
+                </div>
+              </div>
+            )}
+            {planTips.skinSummary && (
+              <div className="ai-tip-card face">
+                <span className="ai-tip-icon">🧴</span>
+                <div>
+                  <p className="ai-tip-label">Skin Care</p>
+                  <p className="ai-tip-text">{planTips.skinSummary}</p>
+                </div>
+              </div>
+            )}
+            {planTips.hairSummary && (
+              <div className="ai-tip-card hair">
+                <span className="ai-tip-icon">💇</span>
+                <div>
+                  <p className="ai-tip-label">Hair Care</p>
+                  <p className="ai-tip-text">{planTips.hairSummary}</p>
+                </div>
+              </div>
+            )}
+          </div>
+          {onboardingAnswers && (
+            <div className="ai-plan-profile">
+              <span>👤 {onboardingAnswers.gender} · {onboardingAnswers.age}y · {onboardingAnswers.weight}kg · {onboardingAnswers.dietPreference}</span>
+              <span>Skin: {onboardingAnswers.skinType} · Hair: {onboardingAnswers.hairType} · Level: {onboardingAnswers.experienceLevel?.split(' ')[0]}</span>
+            </div>
+          )}
+        </section>
+      )}
 
       {/* ── APPLE WATCH INFO ── */}
       <section className="section-card watch-card">
@@ -991,14 +1064,14 @@ export default function Dashboard() {
       <section className="section-card">
         <div className="section-head">
           <h3>📅 Today's Full Schedule</h3>
-          <span className="badge">{doneToday} / {TODAY_SCHEDULE.length} done</span>
+          <span className="badge">{doneToday} / {activeSchedule.length} done</span>
         </div>
         <div className="today-progress-track">
-          <div className="today-progress-fill" style={{ width: `${(doneToday / TODAY_SCHEDULE.length) * 100}%` }} />
+          <div className="today-progress-fill" style={{ width: `${(doneToday / activeSchedule.length) * 100}%` }} />
         </div>
 
         <div className="today-list">
-          {TODAY_SCHEDULE.map((item, i) => {
+          {activeSchedule.map((item, i) => {
             const done = Boolean(completed[`today-${i}`])
             return (
               <div
@@ -1022,7 +1095,7 @@ export default function Dashboard() {
       <footer className="app-footer">
         <p>Goal: 72–75 kg · Protein: 110–120g/day · Water: 3–4 L/day · Sleep: 10 PM–6 AM</p>
         <div className="footer-links">
-          {NAV_PAGES.map((p) => (
+          {activeNavPages.map((p) => (
             <button key={p.id} className="ghost-btn-sm" onClick={() => navigate(`/schedule/${p.id}`)}>
               {p.label}
             </button>
