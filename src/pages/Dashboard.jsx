@@ -111,9 +111,10 @@ const WORKOUT_FALLBACK_MEDIA = {
 }
 
 const BUY_LINK_PROVIDERS = [
-  { label: 'Amazon', buildUrl: (term) => `https://www.amazon.in/s?k=${encodeURIComponent(term)}` },
-  { label: 'Flipkart', buildUrl: (term) => `https://www.flipkart.com/search?q=${encodeURIComponent(term)}` },
-  { label: 'Decathlon', buildUrl: (term) => `https://www.decathlon.in/search?query=${encodeURIComponent(term)}` },
+  { label: 'Amazon US', buildUrl: (term) => `https://www.amazon.com/s?k=${encodeURIComponent(term)}` },
+  { label: 'Walmart', buildUrl: (term) => `https://www.walmart.com/search?q=${encodeURIComponent(term)}` },
+  { label: 'Target', buildUrl: (term) => `https://www.target.com/s?searchTerm=${encodeURIComponent(term)}` },
+  { label: 'iHerb', buildUrl: (term) => `https://www.iherb.com/search?kw=${encodeURIComponent(term)}` },
 ]
 
 function pickWorkoutMedia(rawText) {
@@ -933,6 +934,36 @@ export default function Dashboard() {
         ))}
       </nav>
 
+      <section className="section-card ai-tools-nav-card">
+        <div className="section-head">
+          <h3>AI Tools</h3>
+          <span className="badge">Separate Pages</span>
+        </div>
+        <div className="ai-tools-grid">
+          <button className="ai-tool-btn" onClick={() => navigate('/nutrition-ai')}>
+            <span>🍽️</span>
+            <div>
+              <p>Nutrition AI</p>
+              <small>Analyze meals with AI</small>
+            </div>
+          </button>
+          <button className="ai-tool-btn" onClick={() => navigate('/workout-coach')}>
+            <span>🏋️</span>
+            <div>
+              <p>Workout Coach</p>
+              <small>Interactive daily workout visuals</small>
+            </div>
+          </button>
+          <button className="ai-tool-btn" onClick={() => navigate('/shop')}>
+            <span>🛍️</span>
+            <div>
+              <p>Personalized Shop</p>
+              <small>US-focused products + buy links</small>
+            </div>
+          </button>
+        </div>
+      </section>
+
       {/* ── HEALTH METRICS ── */}
       <section className="section-card">
         <div className="section-head">
@@ -1051,101 +1082,28 @@ export default function Dashboard() {
         </section>
       )}
 
-      {/* ── INTERACTIVE WORKOUT COACH ── */}
-      {workoutDays.length > 0 && (
-        <section className="section-card workout-coach-card">
-          <div className="section-head">
-            <h3>🏋️ Interactive Daily Workout Coach</h3>
-            <span className="badge">{workoutDays.length} training days</span>
-          </div>
-
-          <div className="workout-day-tabs">
-            {workoutDays.map((day, idx) => (
-              <button
-                key={`${day.time}-${idx}`}
-                type="button"
-                className={`workout-day-tab ${selectedWorkoutDay === idx ? 'active' : ''}`}
-                onClick={() => setSelectedWorkoutDay(idx)}
-              >
-                <span>{day.time}</span>
-                <strong>{day.title}</strong>
-              </button>
-            ))}
-          </div>
-
-          {selectedWorkout && (
-            <>
-              <div className="workout-day-summary">
-                <h4>{selectedWorkout.title}</h4>
-                <p>{selectedWorkout.detail}</p>
-              </div>
-
-              <div className="workout-exercise-grid">
-                {selectedWorkout.exerciseCards.map((exercise, idx) => (
-                  <article key={`${exercise.name}-${idx}`} className="workout-exercise-card">
-                    <img src={exercise.image} alt={exercise.name} loading="lazy" />
-                    <div className="workout-exercise-copy">
-                      <p className="exercise-name">{exercise.name}</p>
-                      <p className="exercise-focus">From your plan: {exercise.focus}</p>
-                      <p className="exercise-howto">How to do it: {exercise.howTo}</p>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            </>
-          )}
-        </section>
-      )}
-
-      {/* ── PERSONALIZED SHOPPING RECOMMENDATIONS ── */}
-      {onboardingAnswers && (
-        <section className="section-card shop-card">
-          <div className="section-head">
-            <h3>🛍️ Personalized Product Recommendations</h3>
-            <button className="ghost-btn-sm" onClick={refreshShopRecommendations} disabled={shopLoading}>
-              {shopLoading ? 'Refreshing...' : 'Refresh with AI'}
-            </button>
-          </div>
-          <p className="nutrition-hint">
-            These are tailored to your goals, skin type, and hair type. Use the buy links to compare prices and reviews.
-          </p>
-
-          {shopError && <p className="auth-error nutrition-error">{shopError}</p>}
-
-          {shopLoading && shopRecommendations.items.length === 0 && (
-            <p className="nutrition-hint">Generating personalized products...</p>
-          )}
-
-          {shopRecommendations.items.length > 0 && (
-            <div className="shop-grid">
-              {shopRecommendations.items.map((item, idx) => (
-                <article className="shop-item-card" key={`${item.name}-${idx}`}>
-                  <div className="shop-item-head">
-                    <span className="shop-item-category">{item.category}</span>
-                    <span className={`shop-priority ${item.priority || 'medium'}`}>{item.priority || 'medium'}</span>
-                  </div>
-                  <h4>{item.name}</h4>
-                  <p><strong>Why:</strong> {item.why}</p>
-                  <p><strong>How to use:</strong> {item.usage}</p>
-                  <div className="shop-links">
-                    {buildShoppingLinks(item.buySearchTerm || item.name).map((link) => (
-                      <a key={`${item.name}-${link.label}`} href={link.url} target="_blank" rel="noreferrer" className="shop-link-btn">
-                        Buy on {link.label}
-                      </a>
-                    ))}
-                  </div>
-                </article>
-              ))}
+      <section className="section-card">
+        <div className="section-head">
+          <h3>Moved to Dedicated Pages</h3>
+          <span className="badge">Cleaner Dashboard</span>
+        </div>
+        <div className="ai-tools-grid">
+          <button className="ai-tool-btn" onClick={() => navigate('/workout-coach')}>
+            <span>🏋️</span>
+            <div>
+              <p>Workout Coach</p>
+              <small>Open full interactive workout page</small>
             </div>
-          )}
-
-          {shopRecommendations.notes?.length > 0 && (
-            <div className="shop-notes">
-              {shopRecommendations.notes.map((note, idx) => <p key={`${note}-${idx}`}>• {note}</p>)}
+          </button>
+          <button className="ai-tool-btn" onClick={() => navigate('/shop')}>
+            <span>🛍️</span>
+            <div>
+              <p>Personalized Shop</p>
+              <small>Open US product recommendation page</small>
             </div>
-          )}
-        </section>
-      )}
+          </button>
+        </div>
+      </section>
 
       {/* ── APPLE WATCH INFO ── */}
       <section className="section-card watch-card">
@@ -1273,115 +1231,15 @@ export default function Dashboard() {
         </div>
       </section>
 
-      {/* ── AI NUTRITION ASSISTANT ── */}
       <section className="section-card">
         <div className="section-head">
-          <h3>🤖 AI Nutrition Assistant</h3>
-          <span className="badge">{nutritionSource === 'ai' ? 'AI + Nutrition DB' : 'Ingredient Analyzer'}</span>
+          <h3>AI Nutrition</h3>
+          <span className="badge">Dedicated Page</span>
         </div>
-        <p className="nutrition-hint">Enter ingredients with quantity (e.g. 2 eggs, 100g paneer, 1 cup rice). The assistant estimates calories, protein, carbs, fat, and fiber.</p>
-
-        <div className="nutrition-input-row">
-          <textarea
-            className="nutrition-input"
-            rows={5}
-            value={ingredientText}
-            onChange={(e) => setIngredientText(e.target.value)}
-            placeholder="2 eggs\n100g chicken\n1 cup rice"
-          />
-          <div className="nutrition-actions">
-            <button className="primary-btn nutrition-btn" onClick={runNutritionAnalysis} disabled={nutritionLoading}>
-              {nutritionLoading ? 'Analyzing with AI...' : 'Analyze Meal'}
-            </button>
-            <button className="ghost-btn nutrition-btn" onClick={addMealToDailyProgress} disabled={!nutritionResult}>Add To Daily</button>
-            <button className="ghost-btn nutrition-btn" onClick={exportMealReportPDF} disabled={!nutritionResult}>Export PDF</button>
-          </div>
-        </div>
-
-        {nutritionError && <p className="auth-error nutrition-error">{nutritionError}</p>}
-
-        {nutritionResult && (
-          <div className="nutrition-result">
-            <div className="nutrition-totals">
-              <div className="nutrition-total-card"><span>Calories</span><strong>{nutritionResult.totals.calories} kcal</strong></div>
-              <div className="nutrition-total-card"><span>Protein</span><strong>{nutritionResult.totals.protein} g</strong></div>
-              <div className="nutrition-total-card"><span>Carbs</span><strong>{nutritionResult.totals.carbs} g</strong></div>
-              <div className="nutrition-total-card"><span>Fat</span><strong>{nutritionResult.totals.fat} g</strong></div>
-            </div>
-
-            <div className="nutrition-list">
-              {nutritionResult.entries.map((entry) => (
-                <div key={`${entry.input}-${entry.matched}`} className="nutrition-item">
-                  <p><strong>{entry.matched}</strong> ({entry.grams} g)</p>
-                  <p>{entry.calories} kcal · P {entry.protein} g · C {entry.carbs} g · F {entry.fat} g</p>
-                  {entry.confidence && <p className="nutrition-confidence">Confidence: {entry.confidence}</p>}
-                </div>
-              ))}
-            </div>
-
-            {nutritionResult.unknown.length > 0 && (
-              <p className="nutrition-unknown">Not recognized: {nutritionResult.unknown.join(', ')}</p>
-            )}
-
-            {nutritionNotes.length > 0 && (
-              <div className="nutrition-notes">
-                {nutritionNotes.map((note, idx) => (
-                  <p key={`${note}-${idx}`}>• {note}</p>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        <div className="macro-section">
-          <div className="section-head macro-head">
-            <h3>🎯 Daily Macro Target Progress</h3>
-            <button className="ghost-btn-sm" onClick={resetDailyMacros}>Reset Today</button>
-          </div>
-
-          <div className="macro-goals-grid">
-            <label>
-              Calories Goal
-              <input type="number" min="0" value={macroGoals.calories} onChange={(e) => updateMacroGoal('calories', e.target.value)} />
-            </label>
-            <label>
-              Protein Goal (g)
-              <input type="number" min="0" value={macroGoals.protein} onChange={(e) => updateMacroGoal('protein', e.target.value)} />
-            </label>
-            <label>
-              Carbs Goal (g)
-              <input type="number" min="0" value={macroGoals.carbs} onChange={(e) => updateMacroGoal('carbs', e.target.value)} />
-            </label>
-            <label>
-              Fat Goal (g)
-              <input type="number" min="0" value={macroGoals.fat} onChange={(e) => updateMacroGoal('fat', e.target.value)} />
-            </label>
-          </div>
-
-          <div className="macro-progress-list">
-            {[
-              { key: 'calories', label: 'Calories', unit: 'kcal' },
-              { key: 'protein', label: 'Protein', unit: 'g' },
-              { key: 'carbs', label: 'Carbs', unit: 'g' },
-              { key: 'fat', label: 'Fat', unit: 'g' },
-            ].map((m) => {
-              const consumed = dailyMacros[m.key]
-              const target = macroGoals[m.key] || 1
-              const pct = Math.min((consumed / target) * 100, 100)
-              return (
-                <div key={m.key} className="macro-progress-item">
-                  <div className="macro-progress-top">
-                    <p>{m.label}</p>
-                    <p>{consumed} / {target} {m.unit}</p>
-                  </div>
-                  <div className="macro-progress-track">
-                    <div className="macro-progress-fill" style={{ width: `${pct}%` }} />
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
+        <p className="nutrition-hint">Meal analysis and macro progress have been moved to a separate page for a cleaner dashboard.</p>
+        <button className="primary-btn" onClick={() => navigate('/nutrition-ai')}>
+          Open Nutrition AI
+        </button>
       </section>
 
       {/* ── SMART REMINDERS ── */}

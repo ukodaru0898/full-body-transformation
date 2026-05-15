@@ -117,7 +117,9 @@ Rules:
 - Category values MUST be one of: food, face, hair, gym, wellness.
 - Tailor the plan completely to the user's specific goals, body type, hair type, skin type, diet, and experience.
 - Macro goals must be realistic for the user's weight, goal, and activity level.
-- All tasks should be actionable and specific to the user's profile.`
+- All tasks should be actionable and specific to the user's profile.
+- Face routine MUST include full AM and PM workflows (cleanse, treatment, moisturizer, SPF in AM and cleanse/treatment/moisturizer in PM).
+- Hair routine should include daytime care and night recovery steps where relevant.`
 
 export async function generatePersonalizedPlan(onboardingAnswers) {
   const userPrompt = `Generate a fully personalized wellness and fitness plan for this user:
@@ -214,7 +216,7 @@ Return ONLY valid JSON with this schema:
       "name": "Product name",
       "why": "Why this user needs it",
       "usage": "How to use it briefly",
-      "buySearchTerm": "best whey isolate 1kg india",
+      "buySearchTerm": "best whey isolate usa",
       "priority": "high|medium|low"
     }
   ],
@@ -226,6 +228,7 @@ Rules:
 - Ensure recommendations are personalized to user goal, skin type, hair type, and experience level.
 - Prefer practical and commonly available products.
 - Include at least: 3 gym items, 2 supplements, 2 skin items, 2 hair items, 1 recovery/wellness item.
+- Optimize recommendations for users in the United States and use US-friendly search terms.
 - Avoid medical claims.`
 
   const userPrompt = `Generate personalized shopping recommendations.

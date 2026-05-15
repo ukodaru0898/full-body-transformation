@@ -88,6 +88,33 @@ const PAGES = {
   },
 }
 
+function ensureFaceRoutineCompleteness(page) {
+  if (!page || !Array.isArray(page.tasks)) return page
+
+  const hasMorning = page.tasks.some((task) => /am|morning|spf|sunscreen|vitamin c/i.test(`${task.time} ${task.title} ${task.detail}`))
+  const hasNight = page.tasks.some((task) => /pm|night|retinol|evening/i.test(`${task.time} ${task.title} ${task.detail}`))
+
+  const completedTasks = [...page.tasks]
+
+  if (!hasMorning) {
+    completedTasks.unshift(
+      { time: '6:30 AM · Daily', title: 'Morning Cleanse', detail: 'Use a gentle cleanser and lukewarm water to remove overnight oil and sweat.' },
+      { time: '6:35 AM · Daily', title: 'AM Treatment + Moisturize', detail: 'Apply antioxidant serum (like vitamin C), then a lightweight moisturizer.' },
+      { time: '6:40 AM · Daily', title: 'SPF 30+ Sunscreen', detail: 'Finish every morning with broad-spectrum SPF and reapply when outdoors.' },
+    )
+  }
+
+  if (!hasNight) {
+    completedTasks.push(
+      { time: '8:30 PM · Daily', title: 'Evening Cleanse', detail: 'Clean away sunscreen, dirt, and sweat using a gentle cleanser.' },
+      { time: '8:35 PM · 2-3x/week', title: 'Night Treatment', detail: 'Use retinol or a calming treatment depending on tolerance.' },
+      { time: '8:40 PM · Daily', title: 'Night Moisturizer', detail: 'Apply a richer moisturizer to support overnight skin barrier recovery.' },
+    )
+  }
+
+  return { ...page, tasks: completedTasks }
+}
+
 export default function SchedulePage() {
   const { pageId } = useParams()
   const navigate = useNavigate()
@@ -95,7 +122,8 @@ export default function SchedulePage() {
 
   // Use AI-personalized schedulePages if available, fall back to hardcoded PAGES
   const schedulePages = userProfile?.personalizedPlan?.schedulePages || null
-  const page = (schedulePages?.[pageId]) || PAGES[pageId] || PAGES.face
+  const rawPage = (schedulePages?.[pageId]) || PAGES[pageId] || PAGES.face
+  const page = pageId === 'face' ? ensureFaceRoutineCompleteness(rawPage) : rawPage
   const completed = userProfile?.completedTasks || {}
 
   const toggle = async (key) => {

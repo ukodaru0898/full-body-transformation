@@ -159,6 +159,29 @@
 .section-head h3 { margin: 0; font-size: 1.2rem; color: #1a2740; }
 .badge { background: #1e2d50; color: #c8d8ff; padding: 5px 14px; border-radius: 999px; font-size: 0.82rem; font-weight: 700; }
 
+.ai-tools-nav-card { border-left: 3px solid #5f7cff; }
+.ai-tools-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.ai-tool-btn {
+  border: 1px solid #dbe6f9;
+  background: #f7faff;
+  border-radius: 14px;
+  padding: 12px;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+}
+.ai-tool-btn:hover {
+  transform: translateY(-2px);
+  border-color: #b9ccf2;
+  box-shadow: 0 8px 18px rgba(21, 44, 90, 0.1);
+}
+.ai-tool-btn span { font-size: 1.4rem; }
+.ai-tool-btn p { margin: 0; font-weight: 700; color: #243b60; }
+.ai-tool-btn small { color: #5e7398; }
+
 /* ── HEALTH SYNC ROW ── */
 .health-sync-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .import-btn {

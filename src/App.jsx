@@ -5,6 +5,9 @@ import Dashboard from './pages/Dashboard'
 import SchedulePage from './pages/SchedulePage'
 import Leaderboard from './pages/Leaderboard'
 import OnboardingPage from './pages/OnboardingPage'
+import NutritionAIPage from './pages/NutritionAIPage'
+import WorkoutCoachPage from './pages/WorkoutCoachPage'
+import ShopPage from './pages/ShopPage'
 import './App.css'
 
 function ProtectedRoute({ children }) {
@@ -60,6 +63,30 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <Leaderboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/nutrition-ai"
+            element={
+              <ProtectedRoute>
+                <NutritionAIPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/workout-coach"
+            element={
+              <ProtectedRoute>
+                <WorkoutCoachPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/shop"
+            element={
+              <ProtectedRoute>
+                <ShopPage />
               </ProtectedRoute>
             }
           />
