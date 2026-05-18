@@ -34,7 +34,7 @@ export default function AuthPage() {
   const [busy, setBusy] = useState(false)
   const [showPwd, setShowPwd] = useState(false)
   const [resetSent, setResetSent] = useState(false)
-  const { login, register, loginWithGoogle, forgotPassword, authError, clearAuthError } = useAuth()
+  const { currentUser, userProfile, login, register, loginWithGoogle, forgotPassword, authError, clearAuthError } = useAuth()
   const navigate = useNavigate()
 
   const set = (field) => (e) => setForm((p) => ({ ...p, [field]: e.target.value }))
@@ -45,6 +45,16 @@ export default function AuthPage() {
       setBusy(false)
     }
   }, [authError])
+
+  // If user returns from Google redirect already authenticated, move forward automatically.
+  useEffect(() => {
+    if (!currentUser) return
+    if (userProfile?.onboardingCompleted) {
+      navigate('/dashboard', { replace: true })
+    } else {
+      navigate('/onboarding', { replace: true })
+    }
+  }, [currentUser, userProfile, navigate])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
