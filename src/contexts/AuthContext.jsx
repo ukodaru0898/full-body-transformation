@@ -6,6 +6,7 @@ import {
   onAuthStateChanged,
   updateProfile,
   GoogleAuthProvider,
+  signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
 } from 'firebase/auth'
@@ -92,8 +93,36 @@ export function AuthProvider({ children }) {
     setAuthError(null)
     const provider = new GoogleAuthProvider()
     provider.setCustomParameters({ prompt: 'select_account' })
+
+    // Prefer popup for desktop browsers; use redirect for mobile/webview environments.
+    const isRedirectPreferred =
+      typeof window !== 'undefined'
+      && (
+        window.location?.protocol === 'capacitor:'
+        || /iPhone|iPad|iPod|Android/i.test(window.navigator?.userAgent || '')
+      )
+
+    if (!isRedirectPreferred) {
+      try {
+        const result = await signInWithPopup(auth, provider)
+        if (result?.user) await handleGoogleRedirectResult(result.user)
+        return result?.user || null
+      } catch (err) {
+        const code = err?.code || ''
+        const shouldFallbackToRedirect = [
+          'auth/popup-blocked',
+          'auth/popup-closed-by-user',
+          'auth/cancelled-popup-request',
+          'auth/operation-not-supported-in-this-environment',
+        ].includes(code)
+
+        if (!shouldFallbackToRedirect) throw err
+      }
+    }
+
     await signInWithRedirect(auth, provider)
-    // page will reload after redirect; result handled in useEffect below
+    // Redirect flow reloads the page. Result is handled in getRedirectResult().
+    return null
   }
 
   async function handleGoogleRedirectResult(user) {
